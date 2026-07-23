@@ -88,6 +88,7 @@ minetest.register_entity("public_bus:bus", {
 		visual = "mesh",
 		mesh = "smallbus.obj",
 		textures = {"public_bus_texture.png"},
+		visual_size = {x = 1.0, y = 1.0, z = 1.0},
 		colors = {},
 		spritediv = {x=1, y=1},
 		initial_sprite_basepos = {x=0, y=0},

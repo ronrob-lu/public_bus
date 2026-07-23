@@ -5,7 +5,7 @@ This guide provides step-by-step instructions on how to adjust the size of the a
 ---
 
 ## Step 1: Adjusting the Visual Scale of the Model
-To change how big the bus appears in-game, you can add or adjust the `visual_size` property in the `initial_properties` table of the bus entity registration (around line 52 of `init.lua`):
+To change how big the bus appears in-game, find the `visual_size` property in the `initial_properties` table of the bus entity registration (around line 91 of `init.lua`):
 
 ```lua
 	initial_properties = {
@@ -15,14 +15,14 @@ To change how big the bus appears in-game, you can add or adjust the `visual_siz
 		visual = "mesh",
 		mesh = "smallbus.obj",
 		textures = {"public_bus_texture.png"},
-		-- Add or modify visual_size below to scale the 3D model
 		visual_size = {x = 1.0, y = 1.0, z = 1.0},
 		...
 ```
 
 - By default, `visual_size` is `{x = 1.0, y = 1.0, z = 1.0}`.
-- To make the bus smaller (e.g., 80% of its current size), change it to: `{x = 0.8, y = 0.8, z = 0.8}`.
-- To make it larger (e.g., 120% of its current size), change it to: `{x = 1.2, y = 1.2, z = 1.2}`.
+- To make the bus **smaller** (e.g., 80% of its current size), change it to: `{x = 0.8, y = 0.8, z = 0.8}`.
+- To make the bus **10 times larger**, change it to: `{x = 10.0, y = 10.0, z = 10.0}`.
+- To make the bus **15 times larger**, change it to: `{x = 15.0, y = 15.0, z = 15.0}`.
 
 ---
 
@@ -37,17 +37,27 @@ Current defaults (designed for a ~3.1-block wide, ~3.1-block high, and ~6.8-bloc
 ```
 
 If you scale the bus by a factor of $S$:
-Multiply every number in both tables by $S$.
+Multiply every coordinate value in both tables by $S$.
 
-*Example (to make the bus 80% of its original size, $S = 0.8$):*
+### Scaling 10 Times Larger ($S = 10$):
 - **Collisionbox calculation:**
-  `{-1.572 * 0.8, 0.0 * 0.8, -3.616 * 0.8, 1.572 * 0.8, 3.145 * 0.8, 3.145 * 0.8}`
+  `{-1.572 * 10, 0.0 * 10, -3.616 * 10, 1.572 * 10, 3.145 * 10, 3.145 * 10}`
   Resulting line:
-  `collisionbox = {-1.258, 0.000, -2.893, 1.258, 2.516, 2.516},`
+  `collisionbox = {-15.720, 0.000, -36.160, 15.720, 31.450, 31.450},`
 - **Selectionbox calculation:**
-  `{-1.887 * 0.8, 0.0 * 0.8, -3.931 * 0.8, 1.887 * 0.8, 3.774 * 0.8, 3.459 * 0.8}`
+  `{-1.887 * 10, 0.0 * 10, -3.931 * 10, 1.887 * 10, 3.774 * 10, 3.459 * 10}`
   Resulting line:
-  `selectionbox = {-1.510, 0.000, -3.145, 1.510, 3.019, 2.767},`
+  `selectionbox = {-18.870, 0.000, -39.310, 18.870, 37.740, 34.590},`
+
+### Scaling 15 Times Larger ($S = 15$):
+- **Collisionbox calculation:**
+  `{-1.572 * 15, 0.0 * 15, -3.616 * 15, 1.572 * 15, 3.145 * 15, 3.145 * 15}`
+  Resulting line:
+  `collisionbox = {-23.580, 0.000, -54.240, 23.580, 47.175, 47.175},`
+- **Selectionbox calculation:**
+  `{-1.887 * 15, 0.0 * 15, -3.931 * 15, 1.887 * 15, 3.774 * 15, 3.459 * 15}`
+  Resulting line:
+  `selectionbox = {-28.305, 0.000, -58.965, 28.305, 56.610, 51.885},`
 
 ---
 
@@ -64,10 +74,25 @@ local seat_offsets = {
 If you scale the bus by a factor of $S$:
 Multiply all `x`, `y`, and `z` coordinate values in the table by $S$.
 
-*Example (for 80% size, $S = 0.8$):*
-- Old Seat 1: `{ x = 6.918, y = 11.006, z = -25.157 }`
-- New Seat 1: `{ x = 5.534, y = 8.805, z = -20.126 }`
-Repeat this for all 8 seats in the `seat_offsets` table.
+### Scaling 10 Times Larger ($S = 10$):
+- **Seat 1:** `{ x = 69.180, y = 110.060, z = -251.570 }`
+- **Seat 2:** `{ x = -69.180, y = 110.060, z = -251.570 }`
+- **Seat 3:** `{ x = 69.180, y = 110.060, z = -94.340 }`
+- **Seat 4:** `{ x = -69.180, y = 110.060, z = -94.340 }`
+- **Seat 5:** `{ x = 69.180, y = 110.060, z = 62.890 }`
+- **Seat 6:** `{ x = -69.180, y = 110.060, z = 62.890 }`
+- **Seat 7:** `{ x = 69.180, y = 110.060, z = 220.130 }`
+- **Seat 8:** `{ x = -69.180, y = 110.060, z = 220.130 }`
+
+### Scaling 15 Times Larger ($S = 15$):
+- **Seat 1:** `{ x = 103.770, y = 165.090, z = -377.355 }`
+- **Seat 2:** `{ x = -103.770, y = 165.090, z = -377.355 }`
+- **Seat 3:** `{ x = 103.770, y = 165.090, z = -141.510 }`
+- **Seat 4:** `{ x = -103.770, y = 165.090, z = -141.510 }`
+- **Seat 5:** `{ x = 103.770, y = 165.090, z = 94.335 }`
+- **Seat 6:** `{ x = -103.770, y = 165.090, z = 94.335 }`
+- **Seat 7:** `{ x = 103.770, y = 165.090, z = 330.195 }`
+- **Seat 8:** `{ x = -103.770, y = 165.090, z = 330.195 }`
 
 ---
 
@@ -85,7 +110,8 @@ Located inside the `on_step` function (around line 171 of `init.lua`):
 ```
 The multiplier `5.15` represents how many blocks in front of the center the obstacle check is centered.
 - **Adjustment:** Multiply `5.15` by your length scaling factor.
-  *Example (80% size):* Change `5.15` to `5.15 * 0.8 = 4.12`.
+- **For 10x size:** Change `5.15` to `5.15 * 10 = 51.5`. Also increase check radius (e.g. `2.0` to `20.0`).
+- **For 15x size:** Change `5.15` to `5.15 * 15 = 77.25`. Also increase check radius (e.g. `2.0` to `30.0`).
 
 ### 2. Road Pathfinding Scan (`check_pos_f`)
 Located in two separate scanning logic blocks in `on_step` (around line 208 and line 249 of `init.lua`):
@@ -98,7 +124,8 @@ Located in two separate scanning logic blocks in `on_step` (around line 208 and 
 ```
 The multiplier `4.65` is the scanning distance (in blocks) ahead of the center.
 - **Adjustment:** Multiply `4.65` by your length scaling factor.
-  *Example (80% size):* Change `4.65` to `4.65 * 0.8 = 3.72`. (Make sure to update this in both places).
+- **For 10x size:** Change `4.65` to `4.65 * 10 = 46.5`. (Ensure you update both locations).
+- **For 15x size:** Change `4.65` to `4.65 * 15 = 69.75`. (Ensure you update both locations).
 
 ### 3. Road Scan Width / Lane Alignment (`d_r` loop)
 Located near the scanning checks (around line 213 and line 254 of `init.lua`):
@@ -106,9 +133,11 @@ Located near the scanning checks (around line 213 and line 254 of `init.lua`):
 				for d_r = 3, -3, -1 do
 ```
 This loop defines how far to the right (positive) and left (negative) of the check position the bus scans for road blocks.
-- **Adjustment:** If you make the bus narrower, you should decrease the start and end values of this loop.
-  *Example:* If the bus is scaled down to a width of about 2 blocks, you might change this loop to:
-  `for d_r = 2, -2, -1 do`
+- **Adjustment:** Adjust the loop limit according to the physical block width.
+- **For 10x size:** Since the bus is now ~30 blocks wide, you must scan up to 15 blocks to each side:
+  `for d_r = 15, -15, -1 do`
+- **For 15x size:** Since the bus is now ~45 blocks wide, you must scan up to 22 blocks to each side:
+  `for d_r = 22, -22, -1 do`
 
 ### 4. Elevation/Climb Detection (`jump_check_pos`)
 Located around line 290 of `init.lua`:
@@ -121,4 +150,5 @@ Located around line 290 of `init.lua`:
 ```
 The multiplier `4.15` is the distance ahead of the center where the bus checks if it needs to jump over an elevation.
 - **Adjustment:** Multiply `4.15` by your length scaling factor.
-  *Example (80% size):* Change `4.15` to `4.15 * 0.8 = 3.32`.
+- **For 10x size:** Change `4.15` to `4.15 * 10 = 41.5`.
+- **For 15x size:** Change `4.15` to `4.15 * 15 = 62.25`.
