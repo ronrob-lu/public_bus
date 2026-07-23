@@ -93,7 +93,7 @@ minetest.register_entity("public_bus:bus", {
 		initial_sprite_basepos = {x=0, y=0},
 		is_visible = true,
 		makes_footstep_sound = false,
-		automatic_rotate = false,
+		automatic_rotate = 0,
 		stepheight = 1.1,
 	},
 
