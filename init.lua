@@ -67,23 +67,24 @@ end
 -- X is left/right (-2.2 is left, 2.2 is right)
 -- Y is up (3.5 decimeters above the bus origin/baseline)
 -- Z is front/back (from 8.0 in front to -7.0 in back)
+-- Scaled by ~3.144647 and rotated 180 degrees.
 local seat_offsets = {
-	{ x = -2.2, y = 3.5, z = 8.0 },  -- Front-left (Seat 1)
-	{ x = 2.2,  y = 3.5, z = 8.0 },  -- Front-right (Seat 2)
-	{ x = -2.2, y = 3.5, z = 3.0 },  -- Midfront-left (Seat 3)
-	{ x = 2.2,  y = 3.5, z = 3.0 },  -- Midfront-right (Seat 4)
-	{ x = -2.2, y = 3.5, z = -2.0 }, -- Midback-left (Seat 5)
-	{ x = 2.2,  y = 3.5, z = -2.0 }, -- Midback-right (Seat 6)
-	{ x = -2.2, y = 3.5, z = -7.0 }, -- Back-left (Seat 7)
-	{ x = 2.2,  y = 3.5, z = -7.0 }, -- Back-right (Seat 8)
+	{ x = 6.918, y = 11.006, z = -25.157 }, -- Front-left (Seat 1)
+	{ x = -6.918, y = 11.006, z = -25.157 }, -- Front-right (Seat 2)
+	{ x = 6.918, y = 11.006, z = -9.434 },  -- Midfront-left (Seat 3)
+	{ x = -6.918, y = 11.006, z = -9.434 },  -- Midfront-right (Seat 4)
+	{ x = 6.918, y = 11.006, z = 6.289 },   -- Midback-left (Seat 5)
+	{ x = -6.918, y = 11.006, z = 6.289 },   -- Midback-right (Seat 6)
+	{ x = 6.918, y = 11.006, z = 22.013 },  -- Back-left (Seat 7)
+	{ x = -6.918, y = 11.006, z = 22.013 },  -- Back-right (Seat 8)
 }
 
 -- 3. Entity Registration (public_bus:bus)
 minetest.register_entity("public_bus:bus", {
 	initial_properties = {
 		physical = true,
-		collisionbox = {-0.5, 0.0, -1.0, 0.5, 1.0, 1.15},
-		selectionbox = {-0.6, 0.0, -1.1, 0.6, 1.2, 1.25},
+		collisionbox = {-1.572, 0.000, -3.616, 1.572, 3.145, 3.145},
+		selectionbox = {-1.887, 0.000, -3.931, 1.887, 3.774, 3.459},
 		visual = "mesh",
 		mesh = "smallbus.obj",
 		textures = {"public_bus_texture.png"},
@@ -213,12 +214,13 @@ minetest.register_entity("public_bus:bus", {
 		local dir_r = {x = self.dir_f.z, y = 0, z = -self.dir_f.x}
 
 		-- 2. Player and Mob Detection in front of the bus (avoid pushing/colliding)
+		-- Scaled for 3-block wide, ~6.8-block long bus (front is 3.65 blocks from center)
 		local front_center = {
-			x = pos.x + self.dir_f.x * 1.5,
+			x = pos.x + self.dir_f.x * 5.15,
 			y = pos.y + 0.5,
-			z = pos.z + self.dir_f.z * 1.5
+			z = pos.z + self.dir_f.z * 5.15
 		}
-		local objects = minetest.get_objects_inside_radius(front_center, 1.5)
+		local objects = minetest.get_objects_inside_radius(front_center, 2.0)
 		local obstacle_player = nil
 		local obstacle_mob = nil
 
@@ -279,9 +281,9 @@ minetest.register_entity("public_bus:bus", {
 				-- Verify if the new direction has a valid road ahead
 				local road_found = false
 				local check_pos_f = {
-					x = pos.x + self.dir_f.x * 1.0,
+					x = pos.x + self.dir_f.x * 4.65,
 					y = pos.y,
-					z = pos.z + self.dir_f.z * 1.0
+					z = pos.z + self.dir_f.z * 4.65
 				}
 				-- Scan from rightmost (d_r = 3) to leftmost (d_r = -3)
 				for d_r = 3, -3, -1 do
@@ -312,11 +314,11 @@ minetest.register_entity("public_bus:bus", {
 		end
 
 		if self.state == "DRIVING" then
-			-- Scan 1 block ahead for road
+			-- Scan ahead for road (front of bus is at 3.65, scan 1.0 block beyond)
 			local check_pos_f = {
-				x = pos.x + self.dir_f.x * 1.0,
+				x = pos.x + self.dir_f.x * 4.65,
 				y = pos.y,
-				z = pos.z + self.dir_f.z * 1.0
+				z = pos.z + self.dir_f.z * 4.65
 			}
 			local target_road_pos = nil
 
@@ -370,7 +372,29 @@ minetest.register_entity("public_bus:bus", {
 
 			-- Handle Elevation Climbs (Jumping exactly 1 block)
 			-- If target road y-coordinate is higher than bus's current floor level
-			if target_road_pos.y + 0.5 > pos.y and math.abs(vel.y) < 1.0 then
+			-- Check closer to the front wheels (e.g., 4.15 blocks from center)
+			local jump_check_pos = {
+				x = pos.x + self.dir_f.x * 4.15,
+				y = pos.y,
+				z = pos.z + self.dir_f.z * 4.15
+			}
+			local jump_target = false
+			for _, y_diff in ipairs({0, -1, -2}) do
+				local node_pos = {
+					x = math.floor(jump_check_pos.x + 0.5),
+					y = math.floor(pos.y + y_diff + 0.5),
+					z = math.floor(jump_check_pos.z + 0.5),
+				}
+				local nodename = minetest.get_node(node_pos).name
+				if is_road_node(nodename) then
+					if node_pos.y + 0.5 > pos.y then
+						jump_target = true
+						break
+					end
+				end
+			end
+
+			if jump_target and math.abs(vel.y) < 1.0 then
 				vel_y = 5.5
 			end
 
