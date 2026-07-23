@@ -6,7 +6,7 @@ minetest.register_node("public_bus:street", {
 	description = "Street (Hexagon Pattern)",
 	tiles = {"public_bus_street.png"},
 	groups = {cracky = 3, stone = 1},
-	sounds = minetest.node_sound_stone_defaults(),
+	sounds = (default and default.node_sound_stone_defaults) and default.node_sound_stone_defaults() or nil,
 })
 
 -- Craft recipe for public_bus:street
