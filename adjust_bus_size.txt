@@ -1,0 +1,124 @@
+# How to Adjust the Bus Size in the `public_bus` Mod
+
+This guide provides step-by-step instructions on how to adjust the size of the autonomous public bus. To change the bus's dimensions, you need to update its visual scale, physical boundaries, player passenger seat attachments, and pathfinding/detection offsets in `init.lua`.
+
+---
+
+## Step 1: Adjusting the Visual Scale of the Model
+To change how big the bus appears in-game, you can add or adjust the `visual_size` property in the `initial_properties` table of the bus entity registration (around line 52 of `init.lua`):
+
+```lua
+	initial_properties = {
+		physical = true,
+		collisionbox = {-1.572, 0.000, -3.616, 1.572, 3.145, 3.145},
+		selectionbox = {-1.887, 0.000, -3.931, 1.887, 3.774, 3.459},
+		visual = "mesh",
+		mesh = "smallbus.obj",
+		textures = {"public_bus_texture.png"},
+		-- Add or modify visual_size below to scale the 3D model
+		visual_size = {x = 1.0, y = 1.0, z = 1.0},
+		...
+```
+
+- By default, `visual_size` is `{x = 1.0, y = 1.0, z = 1.0}`.
+- To make the bus smaller (e.g., 80% of its current size), change it to: `{x = 0.8, y = 0.8, z = 0.8}`.
+- To make it larger (e.g., 120% of its current size), change it to: `{x = 1.2, y = 1.2, z = 1.2}`.
+
+---
+
+## Step 2: Adjusting Physical Boundaries (Collision and Selection Boxes)
+The physical presence and click/aim boxes are defined by `collisionbox` and `selectionbox` within the `initial_properties` of the entity.
+
+The format is `{min_x, min_y, min_z, max_x, max_y, max_z}` relative to the center of the entity.
+Current defaults (designed for a ~3.1-block wide, ~3.1-block high, and ~6.8-block long bus):
+```lua
+		collisionbox = {-1.572, 0.000, -3.616, 1.572, 3.145, 3.145},
+		selectionbox = {-1.887, 0.000, -3.931, 1.887, 3.774, 3.459},
+```
+
+If you scale the bus by a factor of $S$:
+Multiply every number in both tables by $S$.
+
+*Example (to make the bus 80% of its original size, $S = 0.8$):*
+- **Collisionbox calculation:**
+  `{-1.572 * 0.8, 0.0 * 0.8, -3.616 * 0.8, 1.572 * 0.8, 3.145 * 0.8, 3.145 * 0.8}`
+  Resulting line:
+  `collisionbox = {-1.258, 0.000, -2.893, 1.258, 2.516, 2.516},`
+- **Selectionbox calculation:**
+  `{-1.887 * 0.8, 0.0 * 0.8, -3.931 * 0.8, 1.887 * 0.8, 3.774 * 0.8, 3.459 * 0.8}`
+  Resulting line:
+  `selectionbox = {-1.510, 0.000, -3.145, 1.510, 3.019, 2.767},`
+
+---
+
+## Step 3: Scaling Player Sitting Positions (Seat Offsets)
+The positions where players sit on the bus are defined in the `seat_offsets` table (around line 38 of `init.lua`):
+```lua
+local seat_offsets = {
+	{ x = 6.918, y = 11.006, z = -25.157 }, -- Front-left (Seat 1)
+	{ x = -6.918, y = 11.006, z = -25.157 }, -- Front-right (Seat 2)
+	-- ... and so on
+}
+```
+**Important:** Minetest attachment coordinates are in **decimeters** (where 1 block = 10 units).
+If you scale the bus by a factor of $S$:
+Multiply all `x`, `y`, and `z` coordinate values in the table by $S$.
+
+*Example (for 80% size, $S = 0.8$):*
+- Old Seat 1: `{ x = 6.918, y = 11.006, z = -25.157 }`
+- New Seat 1: `{ x = 5.534, y = 8.805, z = -20.126 }`
+Repeat this for all 8 seats in the `seat_offsets` table.
+
+---
+
+## Step 4: Adjusting Pathfinding & Obstacle Detection Offsets
+The bus scans ahead of itself to detect roads, obstacles, and up-coming steps. If you change the length/width of the bus, you must scale these scanning distances proportionally so the bus doesn't stop too early or run into walls.
+
+### 1. Obstacle Detection Center (`front_center`)
+Located inside the `on_step` function (around line 171 of `init.lua`):
+```lua
+		local front_center = {
+			x = pos.x + self.dir_f.x * 5.15,
+			y = pos.y + 0.5,
+			z = pos.z + self.dir_f.z * 5.15
+		}
+```
+The multiplier `5.15` represents how many blocks in front of the center the obstacle check is centered.
+- **Adjustment:** Multiply `5.15` by your length scaling factor.
+  *Example (80% size):* Change `5.15` to `5.15 * 0.8 = 4.12`.
+
+### 2. Road Pathfinding Scan (`check_pos_f`)
+Located in two separate scanning logic blocks in `on_step` (around line 208 and line 249 of `init.lua`):
+```lua
+				local check_pos_f = {
+					x = pos.x + self.dir_f.x * 4.65,
+					y = pos.y,
+					z = pos.z + self.dir_f.z * 4.65
+				}
+```
+The multiplier `4.65` is the scanning distance (in blocks) ahead of the center.
+- **Adjustment:** Multiply `4.65` by your length scaling factor.
+  *Example (80% size):* Change `4.65` to `4.65 * 0.8 = 3.72`. (Make sure to update this in both places).
+
+### 3. Road Scan Width / Lane Alignment (`d_r` loop)
+Located near the scanning checks (around line 213 and line 254 of `init.lua`):
+```lua
+				for d_r = 3, -3, -1 do
+```
+This loop defines how far to the right (positive) and left (negative) of the check position the bus scans for road blocks.
+- **Adjustment:** If you make the bus narrower, you should decrease the start and end values of this loop.
+  *Example:* If the bus is scaled down to a width of about 2 blocks, you might change this loop to:
+  `for d_r = 2, -2, -1 do`
+
+### 4. Elevation/Climb Detection (`jump_check_pos`)
+Located around line 290 of `init.lua`:
+```lua
+			local jump_check_pos = {
+				x = pos.x + self.dir_f.x * 4.15,
+				y = pos.y,
+				z = pos.z + self.dir_f.z * 4.15
+			}
+```
+The multiplier `4.15` is the distance ahead of the center where the bus checks if it needs to jump over an elevation.
+- **Adjustment:** Multiply `4.15` by your length scaling factor.
+  *Example (80% size):* Change `4.15` to `4.15 * 0.8 = 3.32`.
