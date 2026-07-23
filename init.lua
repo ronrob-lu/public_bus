@@ -83,12 +83,18 @@ local seat_offsets = {
 minetest.register_entity("public_bus:bus", {
 	initial_properties = {
 		physical = true,
-		collisionbox = {-1.572, 0.000, -3.616, 1.572, 3.145, 3.145},
-		selectionbox = {-1.887, 0.000, -3.931, 1.887, 3.774, 3.459},
+		-- The physical collision and selection boxes are kept narrow (X limits reduced from
+		-- -1.572/1.572 to -1.200/1.200) to ensure the bus fits completely inside standard
+		-- 3-block-wide road lanes. This prevents any part of the collision box from overlapping
+		-- with the 1-block-high pedestrian sidewalks/sidewalk edges next to the road,
+		-- which would otherwise cause the physics engine to step/climb up and drive/fly on top
+		-- of the sidewalk.
+		collisionbox = {-1.200, 0.000, -3.616, 1.200, 3.145, 3.145},
+		selectionbox = {-1.300, 0.000, -3.931, 1.300, 3.774, 3.459},
 		visual = "mesh",
 		mesh = "smallbus.obj",
 		textures = {"public_bus_texture.png"},
-		visual_size = {x = 1.0, y = 1.0, z = 1.0},
+		visual_size = {x = 10.0, y = 10.0, z = 10.0},
 		colors = {},
 		spritediv = {x=1, y=1},
 		initial_sprite_basepos = {x=0, y=0},
@@ -139,8 +145,19 @@ minetest.register_entity("public_bus:bus", {
 		for i = 1, 8 do
 			if not self.passengers[i] then
 				self.passengers[i] = name
-				puncher:set_attach(self.object, "", seat_offsets[i], {x=0, y=0, z=0})
-				puncher:set_eye_offset({x=0, y=10, z=0}, {x=0, y=0, z=0})
+				local seat = seat_offsets[i]
+				-- Since the bus's visual_size is scaled 10x, the passenger is rendered
+				-- at seat_offset * 10, but the passenger camera is not scaled.
+				-- We shift the first-person and third-person eye offset by seat * 9
+				-- (and add y=10 for the default height) to align the camera perfectly
+				-- with the passenger's 10x scaled seating position.
+				local eye_offset = {
+					x = seat.x * 9.0,
+					y = seat.y * 9.0 + 10.0,
+					z = seat.z * 9.0
+				}
+				puncher:set_attach(self.object, "", seat, {x=0, y=0, z=0})
+				puncher:set_eye_offset(eye_offset, eye_offset)
 				return
 			end
 		end
@@ -169,8 +186,19 @@ minetest.register_entity("public_bus:bus", {
 		for i = 1, 8 do
 			if not self.passengers[i] then
 				self.passengers[i] = name
-				clicker:set_attach(self.object, "", seat_offsets[i], {x=0, y=0, z=0})
-				clicker:set_eye_offset({x=0, y=10, z=0}, {x=0, y=0, z=0})
+				local seat = seat_offsets[i]
+				-- Since the bus's visual_size is scaled 10x, the passenger is rendered
+				-- at seat_offset * 10, but the passenger camera is not scaled.
+				-- We shift the first-person and third-person eye offset by seat * 9
+				-- (and add y=10 for the default height) to align the camera perfectly
+				-- with the passenger's 10x scaled seating position.
+				local eye_offset = {
+					x = seat.x * 9.0,
+					y = seat.y * 9.0 + 10.0,
+					z = seat.z * 9.0
+				}
+				clicker:set_attach(self.object, "", seat, {x=0, y=0, z=0})
+				clicker:set_eye_offset(eye_offset, eye_offset)
 				return
 			end
 		end
