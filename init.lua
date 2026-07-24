@@ -222,7 +222,7 @@ minetest.register_entity("public_bus:bus", {
 		visual = "mesh",
 		mesh = "smallbus.obj",
 		textures = {"public_bus_texture.png"},
-		visual_size = {x = 1.0, y = 1.0, z = 1.0},
+		visual_size = {x = 10.0, y = 10.0, z = 10.0},
 		colors = {},
 		spritediv = {x=1, y=1},
 		initial_sprite_basepos = {x=0, y=0},
@@ -314,8 +314,20 @@ minetest.register_entity("public_bus:bus", {
 			if not self.passengers[i] then
 				self.passengers[i] = name
 				local seat = seat_offsets[i]
+				-- Since the bus's visual_size is scaled 10x, the passenger is rendered
+				-- at seat_offset * 10, but the passenger camera is not scaled.
+				-- We shift the first-person and third-person eye offset by seat * 9
+				-- (and add y=10 for the default height) to align the camera perfectly
+				-- with the passenger's 10x scaled seating position.
+				-- Because the passenger is rotated 180 degrees relative to the bus,
+				-- their local X and Z axes are inverted relative to the bus axes.
+				local eye_offset = {
+					x = -seat.x * 9.0,
+					y = seat.y * 9.0 + 10.0,
+					z = -seat.z * 9.0
+				}
 				clicker:set_attach(self.object, "", seat, {x=0, y=180, z=0})
-				clicker:set_eye_offset({x=0, y=10, z=0}, {x=0, y=0, z=0})
+				clicker:set_eye_offset(eye_offset, eye_offset)
 				return
 			end
 		end
