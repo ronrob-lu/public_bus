@@ -1,0 +1,18 @@
+How to adjust the player's view height inside the bus:
+
+1. Open the file `init.lua` in a text editor.
+2. Scroll down to the `on_rightclick` function (around line 208, depending on modifications).
+3. Find this block of code:
+   ```lua
+   local eye_offset = {
+       x = seat.x * 9.0,
+       y = seat.y * 9.0 + 10.0,
+       z = seat.z * 9.0
+   }
+   ```
+4. To adjust the height (so players can see out the window better), you need to change the number in the `y` calculation.
+   - For example, to make the camera higher, increase the `10.0`. Try changing `10.0` to `15.0` or `20.0`:
+     `y = seat.y * 9.0 + 20.0,`
+   - To make the camera lower, decrease the `10.0`. Try changing it to `5.0`:
+     `y = seat.y * 9.0 + 5.0,`
+5. Save the file and restart your Minetest/Luanti server to see the changes.
