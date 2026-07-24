@@ -478,9 +478,9 @@ minetest.register_entity("public_bus:bus", {
 				vel_x = (target_x - pos.x) * 3.0
 				vel_z = self.dir_f.z * self.speed
 			else
-				-- Moving along X axis: align Z coordinate smoothly
+				-- Moving along X axis: align Z coordinate gently (reduced factor to prevent side drift)
 				local target_z = target_road_pos.z
-				vel_z = (target_z - pos.z) * 3.0
+				vel_z = (target_z - pos.z) * 1.5
 				vel_x = self.dir_f.x * self.speed
 			end
 
