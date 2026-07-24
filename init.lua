@@ -398,6 +398,20 @@ minetest.register_entity("public_bus:bus", {
 			-- If front_pos is a wall, it MIGHT be a curb, so we defer turning left until we check Part 2.
 
 			if front_is_air and not front_below_is_road then
+				local front_below_2_pos = {
+					x = front_below_pos.x,
+					y = ground_y - 1,
+					z = front_below_pos.z
+				}
+				local front_below_is_air = is_air(front_below_pos)
+				local front_below_2_is_road = is_road_at_pos(front_below_2_pos)
+
+				if front_below_is_air and front_below_2_is_road then
+					-- The road continues one block lower. Move forward.
+					self.object:set_velocity({x = self.dir_f.x * 4.0, y = 0, z = self.dir_f.z * 4.0})
+					return
+				end
+
 				-- Drop-off / Off-road scenario (Part 3). Stop and turn left.
 				self.object:set_velocity({x = 0, y = 0, z = 0})
 				self.pending_turn_dir = turn_left(self.dir_f)
