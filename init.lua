@@ -125,7 +125,7 @@ local function find_best_road_pos(pos, dir_f, dir_r, turn_cooldown)
 			local center = (left_edge + right_edge) / 2
 			local width = right_edge - left_edge + 1
 			local target_d_r = center
-			if width > 1 then
+			if width >= 4 then
 				target_d_r = center + 0.3
 			end
 			-- Find a valid road node Y coordinate safely
@@ -184,7 +184,7 @@ local function find_best_road_pos(pos, dir_f, dir_r, turn_cooldown)
 		local center = (left_edge + right_edge) / 2
 		local width = right_edge - left_edge + 1
 		local target_d_r = center
-		if width > 1 then
+		if width >= 4 then
 			target_d_r = center + 0.3
 		end
 		-- Find a valid road node Y coordinate safely
@@ -229,7 +229,7 @@ minetest.register_entity("public_bus:bus", {
 		is_visible = true,
 		makes_footstep_sound = false,
 		automatic_rotate = 0,
-		stepheight = 1.1,
+		stepheight = 0.6,
 	},
 
 	state = "DRIVING", -- Possible states: "DRIVING", "STOPPED_FOR_MOB", "STOPPED_FOR_PLAYER", "TURNING"
