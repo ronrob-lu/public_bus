@@ -144,6 +144,11 @@ local function find_best_road_pos(pos, dir_f, dir_r, turn_cooldown)
 			}
 			return target_pos
 		end
+
+		-- If we are in turn cooldown and there's no straight road, we shouldn't scan wider.
+		if turn_cooldown and turn_cooldown > 0 then
+			return nil
+		end
 	end
 
 	-- 2. If road does not continue straight and not in cooldown, scan full range [-3, 3]
@@ -435,6 +440,9 @@ minetest.register_entity("public_bus:bus", {
 				self.dir_f = turn_left(self.dir_f)
 				self.yaw = minetest.dir_to_yaw(self.dir_f)
 				self.object:set_yaw(self.yaw + math.pi)
+
+				-- Recalculate right perpendicular vector for the new direction
+				dir_r = {x = self.dir_f.z, y = 0, z = -self.dir_f.x}
 
 				-- Verify if the new direction has a valid road ahead
 				local target_road_pos = find_best_road_pos(pos, self.dir_f, dir_r, self.turn_cooldown)
