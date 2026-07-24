@@ -128,10 +128,18 @@ local function find_best_road_pos(pos, dir_f, dir_r, turn_cooldown)
 			if width > 1 then
 				target_d_r = center + 0.3
 			end
+			-- Find a valid road node Y coordinate safely
+			local road_y = pos.y
+			for _, node in pairs(straight_nodes) do
+				if node and node.y then
+					road_y = node.y
+					break
+				end
+			end
 			-- Interpolate world coordinates for the target offset
 			local target_pos = {
 				x = check_pos_f.x + dir_r.x * target_d_r,
-				y = straight_nodes[math.floor(target_d_r + 0.5) or 0].y,
+				y = road_y,
 				z = check_pos_f.z + dir_r.z * target_d_r
 			}
 			return target_pos
@@ -174,10 +182,18 @@ local function find_best_road_pos(pos, dir_f, dir_r, turn_cooldown)
 		if width > 1 then
 			target_d_r = center + 0.3
 		end
+		-- Find a valid road node Y coordinate safely
+		local road_y = pos.y
+		for _, node in pairs(all_nodes) do
+			if node and node.y then
+				road_y = node.y
+				break
+			end
+		end
 		-- Interpolate world coordinates for the target offset
 		local target_pos = {
 			x = check_pos_f.x + dir_r.x * target_d_r,
-			y = all_nodes[math.floor(target_d_r + 0.5) or 0].y,
+			y = road_y,
 			z = check_pos_f.z + dir_r.z * target_d_r
 		}
 		return target_pos
