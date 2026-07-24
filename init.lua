@@ -67,16 +67,16 @@ end
 -- X is left/right (-2.2 is left, 2.2 is right)
 -- Y is up (3.5 decimeters above the bus origin/baseline)
 -- Z is front/back (from 8.0 in front to -7.0 in back)
--- Scaled by ~3.144647 and rotated 180 degrees.
+-- Scaled by ~3.144647 (the bus mesh is now correctly aligned without the 180-degree yaw rotation).
 local seat_offsets = {
-	{ x = 6.918, y = 11.006, z = -25.157 }, -- Front-left (Seat 1)
-	{ x = -6.918, y = 11.006, z = -25.157 }, -- Front-right (Seat 2)
-	{ x = 6.918, y = 11.006, z = -9.434 },  -- Midfront-left (Seat 3)
-	{ x = -6.918, y = 11.006, z = -9.434 },  -- Midfront-right (Seat 4)
-	{ x = 6.918, y = 11.006, z = 6.289 },   -- Midback-left (Seat 5)
-	{ x = -6.918, y = 11.006, z = 6.289 },   -- Midback-right (Seat 6)
-	{ x = 6.918, y = 11.006, z = 22.013 },  -- Back-left (Seat 7)
-	{ x = -6.918, y = 11.006, z = 22.013 },  -- Back-right (Seat 8)
+	{ x = -6.918, y = 11.006, z = 25.157 }, -- Front-left (Seat 1)
+	{ x = 6.918, y = 11.006, z = 25.157 },  -- Front-right (Seat 2)
+	{ x = -6.918, y = 11.006, z = 9.434 },  -- Midfront-left (Seat 3)
+	{ x = 6.918, y = 11.006, z = 9.434 },   -- Midfront-right (Seat 4)
+	{ x = -6.918, y = 11.006, z = -6.289 },  -- Midback-left (Seat 5)
+	{ x = 6.918, y = 11.006, z = -6.289 },   -- Midback-right (Seat 6)
+	{ x = -6.918, y = 11.006, z = -22.013 }, -- Back-left (Seat 7)
+	{ x = 6.918, y = 11.006, z = -22.013 },  -- Back-right (Seat 8)
 }
 
 -- Helper: Scan road ahead and determine the best target coordinate
@@ -244,8 +244,8 @@ minetest.register_entity("public_bus:bus", {
 		self.object:set_armor_groups({fleshy = 100})
 		self.passengers = {}
 		self.state = "DRIVING"
-		self.yaw = (self.object:get_yaw() or 0) - math.pi
-		self.object:set_yaw(self.yaw + math.pi)
+		self.yaw = self.object:get_yaw() or 0
+		self.object:set_yaw(self.yaw)
 		self.object:set_acceleration({x = 0, y = -15.0, z = 0}) -- Apply gravity
 		self.turn_cooldown = 0
 	end,
@@ -319,14 +319,13 @@ minetest.register_entity("public_bus:bus", {
 				-- We shift the first-person and third-person eye offset by seat * 9
 				-- (and add y=10 for the default height) to align the camera perfectly
 				-- with the passenger's 10x scaled seating position.
-				-- Because the passenger is rotated 180 degrees relative to the bus,
-				-- their local X and Z axes are inverted relative to the bus axes.
+				-- The passenger is now facing forward (0 rotation) relative to the bus.
 				local eye_offset = {
-					x = -seat.x * 9.0,
+					x = seat.x * 9.0,
 					y = seat.y * 9.0 + 10.0,
-					z = -seat.z * 9.0
+					z = seat.z * 9.0
 				}
-				clicker:set_attach(self.object, "", seat, {x=0, y=180, z=0})
+				clicker:set_attach(self.object, "", seat, {x=0, y=0, z=0})
 				clicker:set_eye_offset(eye_offset, eye_offset)
 				return
 			end
@@ -364,7 +363,7 @@ minetest.register_entity("public_bus:bus", {
 
 		-- Ensure dir_f is initialized
 		if not self.dir_f then
-			local yaw = (self.object:get_yaw() or 0) - math.pi
+			local yaw = self.object:get_yaw() or 0
 			local dir = minetest.yaw_to_dir(yaw)
 			if math.abs(dir.x) > math.abs(dir.z) then
 				self.dir_f = {x = dir.x > 0 and 1 or -1, y = 0, z = 0}
@@ -439,7 +438,7 @@ minetest.register_entity("public_bus:bus", {
 				-- Turn left
 				self.dir_f = turn_left(self.dir_f)
 				self.yaw = minetest.dir_to_yaw(self.dir_f)
-				self.object:set_yaw(self.yaw + math.pi)
+				self.object:set_yaw(self.yaw)
 
 				-- Recalculate right perpendicular vector for the new direction
 				dir_r = {x = self.dir_f.z, y = 0, z = -self.dir_f.x}
@@ -542,7 +541,7 @@ minetest.register_craftitem("public_bus:bus_spawner", {
 			local ent = minetest.add_entity(pos, "public_bus:bus")
 			if ent then
 				local yaw = placer:get_look_horizontal()
-				ent:set_yaw(yaw + math.pi)
+				ent:set_yaw(yaw)
 				local luaent = ent:get_luaentity()
 				if luaent then
 					luaent.yaw = yaw
