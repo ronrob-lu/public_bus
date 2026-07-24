@@ -79,6 +79,113 @@ local seat_offsets = {
 	{ x = -6.918, y = 11.006, z = 22.013 },  -- Back-right (Seat 8)
 }
 
+-- Helper: Scan road ahead and determine the best target coordinate
+local function find_best_road_pos(pos, dir_f, dir_r, turn_cooldown)
+	local check_pos_f = {
+		x = pos.x + dir_f.x * 4.65,
+		y = pos.y,
+		z = pos.z + dir_f.z * 4.65
+	}
+
+	-- 1. Scan narrow range first (straight ahead in lane) to see if road continues straight
+	local straight_nodes = {}
+	for d_r = 1, -1, -1 do
+		for _, y_diff in ipairs({0, -1, -2}) do
+			local node_pos = {
+				x = math.floor(check_pos_f.x + dir_r.x * d_r + 0.5),
+				y = math.floor(pos.y + y_diff + 0.5),
+				z = math.floor(check_pos_f.z + dir_r.z * d_r + 0.5),
+			}
+			local nodename = minetest.get_node(node_pos).name
+			if is_road_node(nodename) then
+				local pos_above1 = {x=node_pos.x, y=node_pos.y+1, z=node_pos.z}
+				local pos_above2 = {x=node_pos.x, y=node_pos.y+2, z=node_pos.z}
+				if not is_solid(pos_above1) and not is_solid(pos_above2) then
+					straight_nodes[d_r] = node_pos
+					break
+				end
+			end
+		end
+	end
+
+	local road_continues_straight = (straight_nodes[0] or straight_nodes[1] or straight_nodes[-1])
+
+	-- If road continues straight or we are in turn cooldown, prioritize straight
+	if road_continues_straight or (turn_cooldown and turn_cooldown > 0) then
+		-- Use straight nodes to find bounds
+		local left_edge, right_edge
+		for d_r = -1, 1 do
+			if straight_nodes[d_r] then
+				if not left_edge then left_edge = d_r end
+				right_edge = d_r
+			end
+		end
+
+		if left_edge and right_edge then
+			local center = (left_edge + right_edge) / 2
+			local width = right_edge - left_edge + 1
+			local target_d_r = center
+			if width > 1 then
+				target_d_r = center + 0.3
+			end
+			-- Interpolate world coordinates for the target offset
+			local target_pos = {
+				x = check_pos_f.x + dir_r.x * target_d_r,
+				y = straight_nodes[math.floor(target_d_r + 0.5) or 0].y,
+				z = check_pos_f.z + dir_r.z * target_d_r
+			}
+			return target_pos
+		end
+	end
+
+	-- 2. If road does not continue straight and not in cooldown, scan full range [-3, 3]
+	local all_nodes = {}
+	for d_r = 3, -3, -1 do
+		for _, y_diff in ipairs({0, -1, -2}) do
+			local node_pos = {
+				x = math.floor(check_pos_f.x + dir_r.x * d_r + 0.5),
+				y = math.floor(pos.y + y_diff + 0.5),
+				z = math.floor(check_pos_f.z + dir_r.z * d_r + 0.5),
+			}
+			local nodename = minetest.get_node(node_pos).name
+			if is_road_node(nodename) then
+				local pos_above1 = {x=node_pos.x, y=node_pos.y+1, z=node_pos.z}
+				local pos_above2 = {x=node_pos.x, y=node_pos.y+2, z=node_pos.z}
+				if not is_solid(pos_above1) and not is_solid(pos_above2) then
+					all_nodes[d_r] = node_pos
+					break
+				end
+			end
+		end
+	end
+
+	local left_edge, right_edge
+	for d_r = -3, 3 do
+		if all_nodes[d_r] then
+			if not left_edge then left_edge = d_r end
+			right_edge = d_r
+		end
+	end
+
+	if left_edge and right_edge then
+		local center = (left_edge + right_edge) / 2
+		local width = right_edge - left_edge + 1
+		local target_d_r = center
+		if width > 1 then
+			target_d_r = center + 0.3
+		end
+		-- Interpolate world coordinates for the target offset
+		local target_pos = {
+			x = check_pos_f.x + dir_r.x * target_d_r,
+			y = all_nodes[math.floor(target_d_r + 0.5) or 0].y,
+			z = check_pos_f.z + dir_r.z * target_d_r
+		}
+		return target_pos
+	end
+
+	return nil
+end
+
 -- 3. Entity Registration (public_bus:bus)
 minetest.register_entity("public_bus:bus", {
 	initial_properties = {
@@ -89,8 +196,8 @@ minetest.register_entity("public_bus:bus", {
 		-- with the 1-block-high pedestrian sidewalks/sidewalk edges next to the road,
 		-- which would otherwise cause the physics engine to step/climb up and drive/fly on top
 		-- of the sidewalk.
-		collisionbox = {-1.200, 0.000, -3.616, 1.200, 3.145, 3.145},
-		selectionbox = {-1.300, 0.000, -3.931, 1.300, 3.774, 3.459},
+		collisionbox = {-1.000, 0.000, -3.616, 1.000, 3.145, 3.145},
+		selectionbox = {-1.100, 0.000, -3.931, 1.100, 3.774, 3.459},
 		visual = "mesh",
 		mesh = "smallbus.obj",
 		textures = {"public_bus_texture.png"},
@@ -109,15 +216,17 @@ minetest.register_entity("public_bus:bus", {
 	yaw = 0,
 	speed = 4.0,
 	turn_timer = 0,
+	turn_cooldown = 0,
 	dir_f = nil,
 
 	on_activate = function(self, staticdata, dtime_s)
 		self.object:set_armor_groups({fleshy = 100})
 		self.passengers = {}
 		self.state = "DRIVING"
-		self.yaw = self.object:get_yaw() or 0
-		self.object:set_yaw(self.yaw)
+		self.yaw = (self.object:get_yaw() or 0) - math.pi
+		self.object:set_yaw(self.yaw + math.pi)
 		self.object:set_acceleration({x = 0, y = -15.0, z = 0}) -- Apply gravity
+		self.turn_cooldown = 0
 	end,
 
 	get_staticdata = function(self)
@@ -130,39 +239,36 @@ minetest.register_entity("public_bus:bus", {
 			return
 		end
 		local name = puncher:get_player_name()
+		local has_privs = minetest.check_player_privs(name, {give = true}) or minetest.check_player_privs(name, {server = true})
+		local is_creative = minetest.settings:get_bool("creative_mode")
 
-		-- If already attached, detach
+		if not (is_creative or has_privs) then
+			minetest.chat_send_player(name, "Only server administrators or players in creative mode can destroy this bus!")
+			return
+		end
+
+		-- Detach all passengers
 		for seat_idx, passenger_name in pairs(self.passengers) do
-			if passenger_name == name then
-				puncher:set_detach()
-				self.passengers[seat_idx] = nil
-				puncher:set_eye_offset({x=0, y=0, z=0}, {x=0, y=0, z=0})
-				return
+			local passenger = minetest.get_player_by_name(passenger_name)
+			if passenger then
+				passenger:set_detach()
+				passenger:set_eye_offset({x=0, y=0, z=0}, {x=0, y=0, z=0})
 			end
 		end
 
-		-- Otherwise, try to attach
-		for i = 1, 8 do
-			if not self.passengers[i] then
-				self.passengers[i] = name
-				local seat = seat_offsets[i]
-				-- Since the bus's visual_size is scaled 10x, the passenger is rendered
-				-- at seat_offset * 10, but the passenger camera is not scaled.
-				-- We shift the first-person and third-person eye offset by seat * 9
-				-- (and add y=10 for the default height) to align the camera perfectly
-				-- with the passenger's 10x scaled seating position.
-				local eye_offset = {
-					x = seat.x * 9.0,
-					y = seat.y * 9.0 + 10.0,
-					z = seat.z * 9.0
-				}
-				puncher:set_attach(self.object, "", seat, {x=0, y=0, z=0})
-				puncher:set_eye_offset(eye_offset, eye_offset)
-				return
+		-- Give spawner item if not in creative mode
+		if not is_creative then
+			local inv = puncher:get_inventory()
+			local stack = ItemStack("public_bus:bus_spawner")
+			if inv and inv:room_for_item("main", stack) then
+				inv:add_item("main", stack)
+			else
+				minetest.add_item(self.object:get_pos() or puncher:get_pos(), stack)
 			end
 		end
 
-		minetest.chat_send_player(name, "The bus is full!")
+		-- Remove the entity
+		self.object:remove()
 	end,
 
 	-- Support right-click to board/exit (clicking)
@@ -192,12 +298,14 @@ minetest.register_entity("public_bus:bus", {
 				-- We shift the first-person and third-person eye offset by seat * 9
 				-- (and add y=10 for the default height) to align the camera perfectly
 				-- with the passenger's 10x scaled seating position.
+				-- Because the passenger is rotated 180 degrees relative to the bus,
+				-- their local X and Z axes are inverted relative to the bus axes.
 				local eye_offset = {
-					x = seat.x * 9.0,
+					x = -seat.x * 9.0,
 					y = seat.y * 9.0 + 10.0,
-					z = seat.z * 9.0
+					z = -seat.z * 9.0
 				}
-				clicker:set_attach(self.object, "", seat, {x=0, y=0, z=0})
+				clicker:set_attach(self.object, "", seat, {x=0, y=180, z=0})
 				clicker:set_eye_offset(eye_offset, eye_offset)
 				return
 			end
@@ -210,6 +318,11 @@ minetest.register_entity("public_bus:bus", {
 	on_step = function(self, dtime)
 		local pos = self.object:get_pos()
 		if not pos then return end
+
+		-- Decrement turn cooldown timer
+		if self.turn_cooldown and self.turn_cooldown > 0 then
+			self.turn_cooldown = self.turn_cooldown - dtime
+		end
 
 		-- 1. Synchronize passengers (remove any who detached manually or logged off)
 		for i = 1, 8 do
@@ -230,7 +343,7 @@ minetest.register_entity("public_bus:bus", {
 
 		-- Ensure dir_f is initialized
 		if not self.dir_f then
-			local yaw = self.object:get_yaw() or 0
+			local yaw = (self.object:get_yaw() or 0) - math.pi
 			local dir = minetest.yaw_to_dir(yaw)
 			if math.abs(dir.x) > math.abs(dir.z) then
 				self.dir_f = {x = dir.x > 0 and 1 or -1, y = 0, z = 0}
@@ -305,72 +418,21 @@ minetest.register_entity("public_bus:bus", {
 				-- Turn left
 				self.dir_f = turn_left(self.dir_f)
 				self.yaw = minetest.dir_to_yaw(self.dir_f)
-				self.object:set_yaw(self.yaw)
+				self.object:set_yaw(self.yaw + math.pi)
 
 				-- Verify if the new direction has a valid road ahead
-				local road_found = false
-				local check_pos_f = {
-					x = pos.x + self.dir_f.x * 4.65,
-					y = pos.y,
-					z = pos.z + self.dir_f.z * 4.65
-				}
-				-- Scan from rightmost (d_r = 3) to leftmost (d_r = -3)
-				for d_r = 3, -3, -1 do
-					for _, y_diff in ipairs({0, -1, -2}) do
-						local node_pos = {
-							x = math.floor(check_pos_f.x + dir_r.x * d_r + 0.5),
-							y = math.floor(pos.y + y_diff + 0.5),
-							z = math.floor(check_pos_f.z + dir_r.z * d_r + 0.5),
-						}
-						local nodename = minetest.get_node(node_pos).name
-						if is_road_node(nodename) then
-							local pos_above1 = {x=node_pos.x, y=node_pos.y+1, z=node_pos.z}
-							local pos_above2 = {x=node_pos.x, y=node_pos.y+2, z=node_pos.z}
-							if not is_solid(pos_above1) and not is_solid(pos_above2) then
-								road_found = true
-								break
-							end
-						end
-					end
-					if road_found then break end
-				end
-
-				if road_found then
+				local target_road_pos = find_best_road_pos(pos, self.dir_f, dir_r, self.turn_cooldown)
+				if target_road_pos then
 					self.state = "DRIVING"
+					self.turn_cooldown = 2.0
 				end
 			end
 			return
 		end
 
 		if self.state == "DRIVING" then
-			-- Scan ahead for road (front of bus is at 3.65, scan 1.0 block beyond)
-			local check_pos_f = {
-				x = pos.x + self.dir_f.x * 4.65,
-				y = pos.y,
-				z = pos.z + self.dir_f.z * 4.65
-			}
-			local target_road_pos = nil
-
-			-- Scan from rightmost (d_r = 3) to leftmost (d_r = -3) to find the rightmost valid position
-			for d_r = 3, -3, -1 do
-				for _, y_diff in ipairs({0, -1, -2}) do
-					local node_pos = {
-						x = math.floor(check_pos_f.x + dir_r.x * d_r + 0.5),
-						y = math.floor(pos.y + y_diff + 0.5),
-						z = math.floor(check_pos_f.z + dir_r.z * d_r + 0.5),
-					}
-					local nodename = minetest.get_node(node_pos).name
-					if is_road_node(nodename) then
-						local pos_above1 = {x=node_pos.x, y=node_pos.y+1, z=node_pos.z}
-						local pos_above2 = {x=node_pos.x, y=node_pos.y+2, z=node_pos.z}
-						if not is_solid(pos_above1) and not is_solid(pos_above2) then
-							target_road_pos = node_pos
-							break
-						end
-					end
-				end
-				if target_road_pos then break end
-			end
+			-- Scan ahead for road using optimized lane-keeping logic
+			local target_road_pos = find_best_road_pos(pos, self.dir_f, dir_r, self.turn_cooldown)
 
 			if not target_road_pos then
 				-- Encountered a dead end or wall; stop and start turning left
@@ -456,7 +518,7 @@ minetest.register_craftitem("public_bus:bus_spawner", {
 			local ent = minetest.add_entity(pos, "public_bus:bus")
 			if ent then
 				local yaw = placer:get_look_horizontal()
-				ent:set_yaw(yaw)
+				ent:set_yaw(yaw + math.pi)
 				local luaent = ent:get_luaentity()
 				if luaent then
 					luaent.yaw = yaw
@@ -474,5 +536,30 @@ minetest.register_craftitem("public_bus:bus_spawner", {
 			end
 		end
 		return itemstack
+	end,
+})
+
+-- 5. Chat Command to Clear All Buses
+minetest.register_chatcommand("clear_pbuses", {
+	description = "Removes all autonomous public buses on the map",
+	privs = {server = true},
+	func = function(name, param)
+		local count = 0
+		for _, entity in pairs(minetest.luaentities) do
+			if entity.name == "public_bus:bus" then
+				if entity.passengers then
+					for _, pname in pairs(entity.passengers) do
+						local passenger = minetest.get_player_by_name(pname)
+						if passenger then
+							passenger:set_detach()
+							passenger:set_eye_offset({x=0, y=0, z=0}, {x=0, y=0, z=0})
+						end
+					end
+				end
+				entity.object:remove()
+				count = count + 1
+			end
+		end
+		return true, "Successfully cleared " .. count .. " public bus(es) from active areas."
 	end,
 })
