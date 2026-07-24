@@ -1,1 +1,1 @@
-Nothing should be ignored based on the provided file changes. The modification of 'init.lua' represents a source code file change, which should not be added to .gitignore.
+Nothing should be ignored based on the provided file changes. The modification of 'init.lua' is a source code file that should not be added to .gitignore.
