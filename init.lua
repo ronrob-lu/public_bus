@@ -27,7 +27,8 @@ local allowed_roads = {
 	"default:junglewood",
 	"public_bus:street",
 	"default:gravel",
-	"mg_villages:road"
+	"mg_villages:road",
+	"pathv7:stairw"
 }
 
 -- Check if a node is an allowed road
@@ -263,7 +264,7 @@ minetest.register_entity("public_bus:bus", {
 			end
 		end
 
-		-- Ensure dir_f is initialized
+		-- Ensure dir_f is initialized and strictly aligned
 		if not self.dir_f then
 			local yaw = self.object:get_yaw() or 0
 			local dir = minetest.yaw_to_dir(yaw)
@@ -272,6 +273,8 @@ minetest.register_entity("public_bus:bus", {
 			else
 				self.dir_f = {x = 0, y = 0, z = dir.z > 0 and 1 or -1}
 			end
+			self.yaw = minetest.dir_to_yaw(self.dir_f)
+			self.object:set_yaw(self.yaw)
 		end
 
 		-- 2. Player and Mob Detection in front of the bus
@@ -334,6 +337,12 @@ minetest.register_entity("public_bus:bus", {
 				self.dir_f = self.pending_turn_dir
 				self.yaw = minetest.dir_to_yaw(self.dir_f)
 				self.object:set_yaw(self.yaw)
+
+				local new_pos = self.object:get_pos()
+				new_pos.x = math.floor(new_pos.x + 0.5)
+				new_pos.z = math.floor(new_pos.z + 0.5)
+				self.object:set_pos(new_pos)
+
 				self.state = "DRIVING"
 			end
 			return
@@ -341,6 +350,25 @@ minetest.register_entity("public_bus:bus", {
 
 		-- DRIVING state
 		if self.state == "DRIVING" then
+			-- Snap to axis to prevent drifting
+			local needs_snap = false
+			if self.dir_f.x ~= 0 then
+				local snapped_z = math.floor(pos.z + 0.5)
+				if math.abs(pos.z - snapped_z) > 0.05 then
+					pos.z = snapped_z
+					needs_snap = true
+				end
+			elseif self.dir_f.z ~= 0 then
+				local snapped_x = math.floor(pos.x + 0.5)
+				if math.abs(pos.x - snapped_x) > 0.05 then
+					pos.x = snapped_x
+					needs_snap = true
+				end
+			end
+			if needs_snap then
+				self.object:set_pos(pos)
+			end
+
 			-- PART 1: Fix the "Flying" Issue (100% Gravity)
 			-- Find the actual ground level directly BELOW the bus by checking downwards
 			-- Start from current rounded Y and go down up to 5 blocks to find a solid block
@@ -426,30 +454,25 @@ minetest.register_entity("public_bus:bus", {
 				self.object:set_velocity({x = self.dir_f.x * 4.0, y = 0, z = self.dir_f.z * 4.0})
 
 			elseif front_is_solid then
-				-- IF that block is SOLID (a wall)
-				-- According to instructions for a 1-block step up:
-				-- Check the block exactly 1 level ABOVE that solid block. Is it empty air?
-				-- Check the block exactly 2 levels ABOVE that solid block. Is it a valid road block?
-				-- We will also include logical curb check (1 above is road, 2 above is air)
+				-- IF that block is SOLID (a wall/step-up)
+				-- Check if this is a 1-block step up (like a bridge or curb).
+				-- This means the block at front_pos (ground_y + 1) is a valid road,
+				-- and the block above it (ground_y + 2) is air.
 				local above_1_pos = {x = front_pos.x, y = front_pos.y + 1, z = front_pos.z}
-				local above_2_pos = {x = front_pos.x, y = front_pos.y + 2, z = front_pos.z}
 
+				local front_is_road = is_road_at_pos(front_pos)
 				local above_1_is_air = is_air(above_1_pos)
-				local above_2_is_road = is_road_at_pos(above_2_pos)
 
-				local standard_curb = is_road_at_pos(above_1_pos) and is_air(above_2_pos)
-				local instruction_curb = above_1_is_air and above_2_is_road
-
-				if standard_curb or instruction_curb then
-					-- IF yes to both: This is a 1-block curb (Bordstein).
+				if front_is_road and above_1_is_air then
+					-- IF yes: This is a 1-block step-up (bridge/curb).
 					-- Move the bus forward, and increase its Y position by exactly 1 block.
-					pos.x = pos.x + self.dir_f.x
+					pos.x = math.floor(pos.x + self.dir_f.x + 0.5)
 					pos.y = pos.y + 1
-					pos.z = pos.z + self.dir_f.z
+					pos.z = math.floor(pos.z + self.dir_f.z + 0.5)
 					self.object:set_pos(pos)
 					self.object:set_velocity({x = self.dir_f.x * 4.0, y = 0, z = self.dir_f.z * 4.0})
 				else
-					-- IF no (it's a 2-block high wall): STOP. Do not move. Turn around.
+					-- IF no (it's a wall or invalid block): STOP. Do not move. Turn around.
 					self.object:set_velocity({x = 0, y = 0, z = 0})
 					self.pending_turn_dir = turn_left(turn_left(self.dir_f))
 					self.state = "TURNING"
@@ -488,14 +511,14 @@ minetest.register_craftitem("public_bus:bus_spawner", {
 
 		if pointed_thing.type == "node" then
 			local pos = pointed_thing.above
+			pos.x = math.floor(pos.x + 0.5)
 			pos.y = pos.y + 0.1
+			pos.z = math.floor(pos.z + 0.5)
 			local ent = minetest.add_entity(pos, "public_bus:bus")
 			if ent then
 				local yaw = placer:get_look_horizontal()
-				ent:set_yaw(yaw)
 				local luaent = ent:get_luaentity()
 				if luaent then
-					luaent.yaw = yaw
 					-- Align dir_f to closest cardinal direction
 					local dir_f = minetest.yaw_to_dir(yaw)
 					if math.abs(dir_f.x) > math.abs(dir_f.z) then
@@ -503,6 +526,11 @@ minetest.register_craftitem("public_bus:bus_spawner", {
 					else
 						luaent.dir_f = {x = 0, y = 0, z = dir_f.z > 0 and 1 or -1}
 					end
+
+					luaent.yaw = minetest.dir_to_yaw(luaent.dir_f)
+					ent:set_yaw(luaent.yaw)
+				else
+					ent:set_yaw(yaw)
 				end
 				if not is_creative then
 					itemstack:take_item()
