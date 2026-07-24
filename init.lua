@@ -144,6 +144,11 @@ local function find_best_road_pos(pos, dir_f, dir_r, turn_cooldown)
 			}
 			return target_pos
 		end
+
+		-- If we are in turn cooldown and there's no straight road, we shouldn't scan wider.
+		if turn_cooldown and turn_cooldown > 0 then
+			return nil
+		end
 	end
 
 	-- 2. If road does not continue straight and not in cooldown, scan full range [-3, 3]
@@ -217,7 +222,7 @@ minetest.register_entity("public_bus:bus", {
 		visual = "mesh",
 		mesh = "smallbus.obj",
 		textures = {"public_bus_texture.png"},
-		visual_size = {x = 10.0, y = 10.0, z = 10.0},
+		visual_size = {x = 1.0, y = 1.0, z = 1.0},
 		colors = {},
 		spritediv = {x=1, y=1},
 		initial_sprite_basepos = {x=0, y=0},
@@ -309,20 +314,8 @@ minetest.register_entity("public_bus:bus", {
 			if not self.passengers[i] then
 				self.passengers[i] = name
 				local seat = seat_offsets[i]
-				-- Since the bus's visual_size is scaled 10x, the passenger is rendered
-				-- at seat_offset * 10, but the passenger camera is not scaled.
-				-- We shift the first-person and third-person eye offset by seat * 9
-				-- (and add y=10 for the default height) to align the camera perfectly
-				-- with the passenger's 10x scaled seating position.
-				-- Because the passenger is rotated 180 degrees relative to the bus,
-				-- their local X and Z axes are inverted relative to the bus axes.
-				local eye_offset = {
-					x = -seat.x * 9.0,
-					y = seat.y * 9.0 + 10.0,
-					z = -seat.z * 9.0
-				}
 				clicker:set_attach(self.object, "", seat, {x=0, y=180, z=0})
-				clicker:set_eye_offset(eye_offset, eye_offset)
+				clicker:set_eye_offset({x=0, y=10, z=0}, {x=0, y=0, z=0})
 				return
 			end
 		end
@@ -435,6 +428,9 @@ minetest.register_entity("public_bus:bus", {
 				self.dir_f = turn_left(self.dir_f)
 				self.yaw = minetest.dir_to_yaw(self.dir_f)
 				self.object:set_yaw(self.yaw + math.pi)
+
+				-- Recalculate right perpendicular vector for the new direction
+				dir_r = {x = self.dir_f.z, y = 0, z = -self.dir_f.x}
 
 				-- Verify if the new direction has a valid road ahead
 				local target_road_pos = find_best_road_pos(pos, self.dir_f, dir_r, self.turn_cooldown)
