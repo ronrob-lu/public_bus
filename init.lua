@@ -282,7 +282,7 @@ minetest.register_entity("public_bus:bus", {
 				-- The passenger is now facing forward (0 rotation) relative to the bus.
 				local eye_offset = {
 						x = seat.x * 29.0,
-						y = seat.y * 29.0 + 10.0,
+						y = seat.y * 29.0 + 17.0,
 						z = seat.z * 29.0
 				}
 				clicker:set_attach(self.object, "", seat, {x=0, y=0, z=0})
@@ -293,6 +293,26 @@ minetest.register_entity("public_bus:bus", {
 		end
 
 		minetest.chat_send_player(name, "The bus is full!")
+	end,
+
+	update_bus_boxes = function(self)
+		if not self.dir_f then return end
+		local cbox, sbox
+		if self.dir_f.x ~= 0 then
+			-- Facing East or West (X axis). Swap width and length.
+			-- Original: {-1.000, 0.000, -10.848, 1.000, 9.435, 9.435}
+			-- Swapped: {-10.848, 0.000, -1.000, 9.435, 9.435, 1.000} (min/max fixed)
+			cbox = {-10.848, 0.000, -1.000, 9.435, 9.435, 1.000}
+			sbox = {-11.793, 0.000, -1.100, 10.377, 11.322, 1.100}
+		else
+			-- Facing North or South (Z axis). Use original bounds.
+			cbox = {-1.000, 0.000, -10.848, 1.000, 9.435, 9.435}
+			sbox = {-1.100, 0.000, -11.793, 1.100, 11.322, 10.377}
+		end
+		self.object:set_properties({
+			collisionbox = cbox,
+			selectionbox = sbox
+		})
 	end,
 
 	-- ========================================================================
@@ -331,6 +351,7 @@ minetest.register_entity("public_bus:bus", {
 			end
 			self.yaw = minetest.dir_to_yaw(self.dir_f)
 			self.object:set_yaw(self.yaw)
+			self:update_bus_boxes()
 		end
 
 		-- 2. Player and Mob Detection in front of the bus
@@ -402,6 +423,7 @@ minetest.register_entity("public_bus:bus", {
 				self.dir_f = self.pending_turn_dir
 				self.yaw = minetest.dir_to_yaw(self.dir_f)
 				self.object:set_yaw(self.yaw)
+				self:update_bus_boxes()
 
 				local new_pos = self.object:get_pos()
 				new_pos.x = math.floor(new_pos.x + 0.5)
@@ -545,6 +567,7 @@ minetest.register_craftitem("public_bus:bus_spawner", {
 
 					luaent.yaw = minetest.dir_to_yaw(luaent.dir_f)
 					ent:set_yaw(luaent.yaw)
+					luaent:update_bus_boxes()
 				else
 					ent:set_yaw(yaw)
 				end
