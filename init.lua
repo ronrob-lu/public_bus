@@ -230,6 +230,7 @@ minetest.register_entity("public_bus:bus", {
 			if passenger then
 				passenger:set_detach()
 				passenger:set_eye_offset({x=0, y=0, z=0}, {x=0, y=0, z=0})
+				passenger:set_properties({visual_size = {x=1, y=1, z=1}})
 			end
 		end
 
@@ -261,6 +262,7 @@ minetest.register_entity("public_bus:bus", {
 				clicker:set_detach()
 				self.passengers[seat_idx] = nil
 				clicker:set_eye_offset({x=0, y=0, z=0}, {x=0, y=0, z=0})
+				clicker:set_properties({visual_size = {x=1, y=1, z=1}})
 				return
 			end
 		end
@@ -283,6 +285,7 @@ minetest.register_entity("public_bus:bus", {
 				}
 				clicker:set_attach(self.object, "", seat, {x=0, y=0, z=0})
 				clicker:set_eye_offset(eye_offset, eye_offset)
+				clicker:set_properties({visual_size = {x=0.1, y=0.1, z=0.1}})
 				return
 			end
 		end
@@ -309,6 +312,7 @@ minetest.register_entity("public_bus:bus", {
 					if parent ~= self.object then
 						self.passengers[i] = nil
 						player:set_eye_offset({x=0, y=0, z=0}, {x=0, y=0, z=0})
+						player:set_properties({visual_size = {x=1, y=1, z=1}})
 					end
 				end
 			end
@@ -548,6 +552,7 @@ minetest.register_chatcommand("clear_pbuses", {
 						if passenger then
 							passenger:set_detach()
 							passenger:set_eye_offset({x=0, y=0, z=0}, {x=0, y=0, z=0})
+							passenger:set_properties({visual_size = {x=1, y=1, z=1}})
 						end
 					end
 				end
