@@ -176,8 +176,8 @@ minetest.register_entity("public_bus:bus", {
 		collisionbox = {-1.000, 0.000, -3.616, 1.000, 3.145, 3.145},
 		selectionbox = {-1.100, 0.000, -3.931, 1.100, 3.774, 3.459},
 		visual = "mesh",
-		mesh = "smallbus.obj",
-		textures = {"public_bus_texture.png"},
+		mesh = "new_bus.gltf",
+		textures = {"colormap.png", "texture_bus_new.png"},
 		visual_size = {x = 10.0, y = 10.0, z = 10.0},
 		colors = {},
 		spritediv = {x=1, y=1},
@@ -200,6 +200,8 @@ minetest.register_entity("public_bus:bus", {
 		self.object:set_armor_groups({fleshy = 100})
 		self.passengers = {}
 		self.state = "DRIVING"
+		self.last_state = "DRIVING"
+		self.object:set_animation({x = 1, y = 2}, 1, 0, true)
 		self.yaw = self.object:get_yaw() or 0
 		self.object:set_yaw(self.yaw)
 		self.object:set_acceleration({x = 0, y = -15.0, z = 0}) -- Apply gravity
@@ -375,6 +377,15 @@ minetest.register_entity("public_bus:bus", {
 			self.state = "DRIVING"
 		end
 
+		if self.state ~= self.last_state then
+			if self.state == "DRIVING" or self.state == "TURNING" then
+				self.object:set_animation({x = 1, y = 2}, 1, 0, true)
+			else
+				self.object:set_animation({x = 0, y = 0.59}, 1, 0, true)
+			end
+			self.last_state = self.state
+		end
+
 		if self.state == "STOPPED_FOR_PLAYER" or self.state == "STOPPED_FOR_MOB" then
 			local vel = self.object:get_velocity() or {x=0, y=0, z=0}
 			self.object:set_velocity({x = 0, y = 0, z = 0})
@@ -398,6 +409,10 @@ minetest.register_entity("public_bus:bus", {
 				self.object:set_pos(new_pos)
 
 				self.state = "DRIVING"
+					if self.state ~= self.last_state then
+						self.object:set_animation({x = 1, y = 2}, 1, 0, true)
+						self.last_state = self.state
+					end
 			end
 			return
 		end
@@ -482,6 +497,10 @@ minetest.register_entity("public_bus:bus", {
 			self.object:set_velocity({x = 0, y = 0, z = 0})
 			self.pending_turn_dir = turn_left(self.dir_f)
 			self.state = "TURNING"
+			if self.state ~= self.last_state then
+				self.object:set_animation({x = 1, y = 2}, 1, 0, true)
+				self.last_state = self.state
+			end
 			self.turn_timer = 0
 			return
 		end
