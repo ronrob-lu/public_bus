@@ -145,22 +145,140 @@ local function get_valid_road_y(px, pz, current_y)
 end
 
 -- Helper: Look ahead to see if the road continues beyond the next block
-local function has_valid_next_step(px, pz, py, dir_f)
-	local dirs = {
-		dir_f,
-		turn_left(dir_f),
-		turn_right(dir_f)
-	}
+-- Helper: Check for two straight blocks after an elevation change
+local function has_two_straight_blocks(px, pz, py, dir_f)
+	local nx1 = px + dir_f.x
+	local nz1 = pz + dir_f.z
+	local ny1 = get_valid_road_y(nx1, nz1, py)
+	if ny1 == nil then return false end
 
-	for _, d in ipairs(dirs) do
-		local nx = px + d.x
-		local nz = pz + d.z
-		if get_valid_road_y(nx, nz, py) ~= nil then
-			return true
+	local nx2 = nx1 + dir_f.x
+	local nz2 = nz1 + dir_f.z
+	local ny2 = get_valid_road_y(nx2, nz2, ny1)
+	if ny2 == nil then return false end
+
+	return true
+end
+
+-- Helper: Compute path queue for the bus
+local function compute_path(start_x, start_z, start_y, start_dir, max_steps)
+	local path = {}
+	local cx, cz, cy = start_x, start_z, start_y
+	local cdir = {x = start_dir.x, y = 0, z = start_dir.z}
+	local step_count = 0
+
+	while step_count < max_steps do
+		local dir_r = turn_right(cdir)
+		local dir_l = turn_left(cdir)
+
+		-- 1. Check Right
+		local rx = cx + dir_r.x
+		local rz = cz + dir_r.z
+		local ry = get_valid_road_y(rx, rz, cy)
+
+		local right_valid = false
+		if ry ~= nil then
+			right_valid = true
+			if ry ~= cy then
+				if not has_two_straight_blocks(rx, rz, ry, dir_r) then
+					right_valid = false
+				end
+			end
+		end
+
+		if right_valid then
+			table.insert(path, {type = "TURN_RIGHT", dir = dir_r, x = cx, y = cy, z = cz})
+			table.insert(path, {type = "MOVE", dir = dir_r, x = rx, y = ry, z = rz})
+			cdir = dir_r
+			cx = rx
+			cz = rz
+			cy = ry
+			step_count = step_count + 1
+		else
+			-- 2. Check Diagonal Right
+			local dx = cx + cdir.x + dir_r.x
+			local dz = cz + cdir.z + dir_r.z
+			local dy = get_valid_road_y(dx, dz, cy)
+
+			local diag_valid = false
+			local f_is_road = false
+			local r_is_road = false
+			local fy_diag = nil
+			local ry_diag = nil
+			if dy ~= nil then
+				-- Diagonal gap check: if both the forward and right blocks are non-streets, reject.
+				fy_diag = get_valid_road_y(cx + cdir.x, cz + cdir.z, cy)
+				ry_diag = get_valid_road_y(cx + dir_r.x, cz + dir_r.z, cy)
+				f_is_road = fy_diag ~= nil
+				r_is_road = ry_diag ~= nil
+
+				if not f_is_road and not r_is_road then
+					-- Gap of 2 non-street blocks detected
+					diag_valid = false
+				else
+					diag_valid = true
+					if dy ~= cy then
+						-- For diagonal elevation, assume the "straight" continuation is the new diagonal facing or one of its components.
+						-- We'll check straight along the cardinal direction that leads to it, but standard 2-straight check:
+						if not has_two_straight_blocks(dx, dz, dy, cdir) and not has_two_straight_blocks(dx, dz, dy, dir_r) then
+							diag_valid = false
+						end
+					end
+				end
+			end
+
+			if diag_valid then
+				-- Navigate the diagonal safely using orthogonal moves through valid road blocks
+				if r_is_road then
+					table.insert(path, {type = "TURN_RIGHT", dir = dir_r, x = cx, y = cy, z = cz})
+					table.insert(path, {type = "MOVE", dir = dir_r, x = cx + dir_r.x, y = ry_diag, z = cz + dir_r.z})
+					table.insert(path, {type = "TURN_LEFT", dir = cdir, x = cx + dir_r.x, y = ry_diag, z = cz + dir_r.z})
+					table.insert(path, {type = "MOVE", dir = cdir, x = dx, y = dy, z = dz})
+				else
+					-- fallback to forward then right
+					table.insert(path, {type = "MOVE", dir = cdir, x = cx + cdir.x, y = fy_diag, z = cz + cdir.z})
+					table.insert(path, {type = "TURN_RIGHT", dir = dir_r, x = cx + cdir.x, y = fy_diag, z = cz + cdir.z})
+					table.insert(path, {type = "MOVE", dir = dir_r, x = dx, y = dy, z = dz})
+					table.insert(path, {type = "TURN_LEFT", dir = cdir, x = dx, y = dy, z = dz})
+				end
+				cdir = cdir -- facing remains forward after the orthogonal zigzag. A diagonal right effectively translates you one lane over but maintains forward direction.
+				cx = dx
+				cz = dz
+				cy = dy
+				step_count = step_count + 1
+			else
+				-- 3. Check Forward
+				local fx = cx + cdir.x
+				local fz = cz + cdir.z
+				local fy = get_valid_road_y(fx, fz, cy)
+
+				local forward_valid = false
+				if fy ~= nil then
+					forward_valid = true
+					if fy ~= cy then
+						if not has_two_straight_blocks(fx, fz, fy, cdir) then
+							forward_valid = false
+						end
+					end
+				end
+
+				if forward_valid then
+					table.insert(path, {type = "MOVE", dir = cdir, x = fx, y = fy, z = fz})
+					cx = fx
+					cz = fz
+					cy = fy
+					step_count = step_count + 1
+				else
+					-- 4. Mandatory Left Turn
+					table.insert(path, {type = "TURN_LEFT", dir = dir_l, x = cx, y = cy, z = cz})
+					cdir = dir_l
+					-- cx, cz, cy do not change, allowing the next iteration to scan from the new facing.
+					step_count = step_count + 1
+				end
+			end
 		end
 	end
-
-	return false
+	return path
 end
 
 -- 3. Entity Registration (public_bus:bus)
@@ -404,28 +522,7 @@ minetest.register_entity("public_bus:bus", {
 
 		-- DRIVING state
 		if self.state == "DRIVING" then
-			-- Snap to axis to prevent drifting
-			local needs_snap = false
-			if self.dir_f.x ~= 0 then
-				local snapped_z = math.floor(pos.z + 0.5)
-				if math.abs(pos.z - snapped_z) > 0.05 then
-					pos.z = snapped_z
-					needs_snap = true
-				end
-			elseif self.dir_f.z ~= 0 then
-				local snapped_x = math.floor(pos.x + 0.5)
-				if math.abs(pos.x - snapped_x) > 0.05 then
-					pos.x = snapped_x
-					needs_snap = true
-				end
-			end
-			if needs_snap then
-				self.object:set_pos(pos)
-			end
-
-			-- PART 1: Fix the "Flying" Issue (100% Gravity)
-			-- Find the actual ground level directly BELOW the bus by checking downwards
-			-- Start from current rounded Y and go down up to 5 blocks to find a solid block
+			-- Ensure Y position is stable on solid ground
 			local ground_y = math.floor(pos.y + 0.5)
 			local found_ground = false
 			for y_search = math.floor(pos.y + 0.5), math.floor(pos.y + 0.5) - 5, -1 do
@@ -442,48 +539,83 @@ minetest.register_entity("public_bus:bus", {
 			end
 
 			if found_ground then
-				-- Force the bus's Y position (height) to be exactly on top of that solid block.
 				pos.y = ground_y + 0.5
 				self.object:set_pos(pos)
 			end
 
-			-- Force the bus's Y velocity (up/down speed) to be exactly 0.
 			local vel = self.object:get_velocity() or {x=0, y=0, z=0}
 			vel.y = 0
 			self.object:set_velocity(vel)
 
-			-- PART 3: Smart Pathfinding with Lookahead
-			local target_x = math.floor(pos.x + self.dir_f.x + 0.5)
-			local target_z = math.floor(pos.z + self.dir_f.z + 0.5)
+			-- Initialize or repopulate the path queue
+			if not self.path_queue or #self.path_queue == 0 then
+				local start_x = math.floor(pos.x + 0.5)
+				local start_z = math.floor(pos.z + 0.5)
+				self.path_queue = compute_path(start_x, start_z, ground_y, self.dir_f, 60)
+			end
 
-			local next_y = get_valid_road_y(target_x, target_z, ground_y)
+			-- Process next action in the queue
+			if #self.path_queue > 0 then
+				local action = self.path_queue[1]
 
-			if next_y ~= nil then
-				-- We found a valid road block directly in front of us (flat, up, or down).
-				-- Now we must look ahead to ensure the road goes further, so we don't get stuck in a hole or a 1-block dead end.
-				if has_valid_next_step(target_x, target_z, next_y, self.dir_f) then
-					-- The road continues safely. Move forward.
-					if next_y > ground_y then
-						-- Step up
-						pos.x = target_x
-						pos.y = pos.y + 1
-						pos.z = target_z
+				if action.type == "TURN_RIGHT" or action.type == "TURN_LEFT" then
+					-- We need to turn immediately
+					self.object:set_velocity({x = 0, y = 0, z = 0})
+					self.pending_turn_dir = action.dir
+					self.state = "TURNING"
+					self.turn_timer = 0
+
+					-- Snap to grid before turning
+					local snap_pos = self.object:get_pos()
+					snap_pos.x = math.floor(snap_pos.x + 0.5)
+					snap_pos.z = math.floor(snap_pos.z + 0.5)
+					self.object:set_pos(snap_pos)
+
+					table.remove(self.path_queue, 1)
+					return
+				elseif action.type == "MOVE" then
+					-- Snap to axis to prevent drifting
+					local needs_snap = false
+					if self.dir_f.x ~= 0 then
+						local snapped_z = math.floor(pos.z + 0.5)
+						if math.abs(pos.z - snapped_z) > 0.05 then
+							pos.z = snapped_z
+							needs_snap = true
+						end
+					elseif self.dir_f.z ~= 0 then
+						local snapped_x = math.floor(pos.x + 0.5)
+						if math.abs(pos.x - snapped_x) > 0.05 then
+							pos.x = snapped_x
+							needs_snap = true
+						end
+					end
+					if needs_snap then
 						self.object:set_pos(pos)
 					end
-					-- No need to explicitly step down here, the gravity check at the beginning of DRIVING state will drop it down.
+
+					-- Apply step up if elevation changed in the path plan
+					if action.y > ground_y then
+						pos.x = action.x
+						pos.y = action.y + 0.5
+						pos.z = action.z
+						self.object:set_pos(pos)
+					end
 
 					self.object:set_velocity({x = self.dir_f.x * 4.0, y = 0, z = self.dir_f.z * 4.0})
+
+					-- Determine if we have passed the target block
+					local passed = false
+					if self.dir_f.x > 0 and pos.x >= action.x then passed = true end
+					if self.dir_f.x < 0 and pos.x <= action.x then passed = true end
+					if self.dir_f.z > 0 and pos.z >= action.z then passed = true end
+					if self.dir_f.z < 0 and pos.z <= action.z then passed = true end
+
+					if passed then
+						table.remove(self.path_queue, 1)
+					end
 					return
 				end
 			end
-
-			-- If next_y is nil OR the road does not continue (dead end / single block hole),
-			-- stop and turn left to find another way.
-			self.object:set_velocity({x = 0, y = 0, z = 0})
-			self.pending_turn_dir = turn_left(self.dir_f)
-			self.state = "TURNING"
-			self.turn_timer = 0
-			return
 		end
 	end
 })
