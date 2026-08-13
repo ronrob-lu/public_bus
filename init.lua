@@ -173,12 +173,12 @@ minetest.register_entity("public_bus:bus", {
 		-- with the 1-block-high pedestrian sidewalks/sidewalk edges next to the road,
 		-- which would otherwise cause the physics engine to step/climb up and drive/fly on top
 		-- of the sidewalk.
-		collisionbox = {-7.000, 0.000, -25.312, 7.000, 22.015, 22.015},
-		selectionbox = {-7.700, 0.000, -27.517, 7.700, 26.418, 24.213},
+		collisionbox = {-1.000, 0.000, -10.848, 1.000, 9.435, 9.435},
+		selectionbox = {-1.100, 0.000, -11.793, 1.100, 11.322, 10.377},
 		visual = "mesh",
 		mesh = "new_bus.gltf",
 		textures = {"texture_bus_new.png", "colormap.png"},
-		visual_size = {x = 70.0, y = 70.0, z = 70.0},
+		visual_size = {x = 30.0, y = 30.0, z = 30.0},
 		colors = {},
 		spritediv = {x=1, y=1},
 		initial_sprite_basepos = {x=0, y=0},
@@ -274,20 +274,20 @@ minetest.register_entity("public_bus:bus", {
 			if not self.passengers[i] then
 				self.passengers[i] = name
 				local seat = seat_offsets[i]
-					-- Since the bus's visual_size is scaled 70x, the passenger is rendered
-					-- at seat_offset * 70, but the passenger camera is not scaled.
-					-- We shift the first-person and third-person eye offset by seat * 69
+					-- Since the bus's visual_size is scaled 30x, the passenger is rendered
+					-- at seat_offset * 30, but the passenger camera is not scaled.
+					-- We shift the first-person and third-person eye offset by seat * 29
 				-- (and add y=10 for the default height) to align the camera perfectly
-					-- with the passenger's 70x scaled seating position.
+					-- with the passenger's 30x scaled seating position.
 				-- The passenger is now facing forward (0 rotation) relative to the bus.
 				local eye_offset = {
-						x = seat.x * 69.0,
-						y = seat.y * 69.0 + 10.0,
-						z = seat.z * 69.0
+						x = seat.x * 29.0,
+						y = seat.y * 29.0 + 10.0,
+						z = seat.z * 29.0
 				}
 				clicker:set_attach(self.object, "", seat, {x=0, y=0, z=0})
 				clicker:set_eye_offset(eye_offset, eye_offset)
-					clicker:set_properties({visual_size = {x=1/70, y=1/70, z=1/70}})
+					clicker:set_properties({visual_size = {x=1/30, y=1/30, z=1/30}})
 				return
 			end
 		end
@@ -335,11 +335,11 @@ minetest.register_entity("public_bus:bus", {
 
 		-- 2. Player and Mob Detection in front of the bus
 		local front_center = {
-			x = pos.x + self.dir_f.x * 36.05,
+			x = pos.x + self.dir_f.x * 15.45,
 			y = pos.y + 0.5,
-			z = pos.z + self.dir_f.z * 36.05
+			z = pos.z + self.dir_f.z * 15.45
 		}
-		local objects = minetest.get_objects_inside_radius(front_center, 14.0)
+		local objects = minetest.get_objects_inside_radius(front_center, 6.0)
 		local obstacle_player = nil
 		local obstacle_mob = nil
 
