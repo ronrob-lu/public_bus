@@ -177,7 +177,7 @@ minetest.register_entity("public_bus:bus", {
 		selectionbox = {-1.100, 0.000, -3.931, 1.100, 3.774, 3.459},
 		visual = "mesh",
 		mesh = "new_bus.gltf",
-		textures = {"colormap.png", "texture_bus_new.png"},
+		textures = {"texture_bus_new.png", "colormap.png"},
 		visual_size = {x = 10.0, y = 10.0, z = 10.0},
 		colors = {},
 		spritediv = {x=1, y=1},
