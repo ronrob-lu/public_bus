@@ -115,6 +115,54 @@ local function is_road_at_pos(pos)
 	return is_road_node(node.name)
 end
 
+-- Helper: Get the valid road Y coordinate at (px, pz) near current_y
+-- Returns current_y, current_y + 1, current_y - 1, or nil if no valid road
+local function get_valid_road_y(px, pz, current_y)
+	-- Check flat (current_y)
+	local pos_flat = {x = px, y = current_y, z = pz}
+	local pos_flat_air = {x = px, y = current_y + 1, z = pz}
+	if is_road_at_pos(pos_flat) and is_air(pos_flat_air) then
+		return current_y
+	end
+
+	-- Check up (current_y + 1)
+	local pos_up = {x = px, y = current_y + 1, z = pz}
+	local pos_up_air = {x = px, y = current_y + 2, z = pz}
+	if is_road_at_pos(pos_up) and is_air(pos_up_air) then
+		return current_y + 1
+	end
+
+	-- Check down (current_y - 1)
+	-- To move down, the space we are moving THROUGH must also be air
+	local pos_down = {x = px, y = current_y - 1, z = pz}
+	local pos_down_air1 = {x = px, y = current_y, z = pz}
+	local pos_down_air2 = {x = px, y = current_y + 1, z = pz}
+	if is_road_at_pos(pos_down) and is_air(pos_down_air1) and is_air(pos_down_air2) then
+		return current_y - 1
+	end
+
+	return nil
+end
+
+-- Helper: Look ahead to see if the road continues beyond the next block
+local function has_valid_next_step(px, pz, py, dir_f)
+	local dirs = {
+		dir_f,
+		turn_left(dir_f),
+		turn_right(dir_f)
+	}
+
+	for _, d in ipairs(dirs) do
+		local nx = px + d.x
+		local nz = pz + d.z
+		if get_valid_road_y(nx, nz, py) ~= nil then
+			return true
+		end
+	end
+
+	return false
+end
+
 -- 3. Entity Registration (public_bus:bus)
 minetest.register_entity("public_bus:bus", {
 	initial_properties = {
@@ -400,95 +448,38 @@ minetest.register_entity("public_bus:bus", {
 			vel.y = 0
 			self.object:set_velocity(vel)
 
-			-- PART 3: Strict Pathfinding
-			-- Before moving, check the block directly below the front of the bus.
-			-- "below the front" means the block at ground_y (where the road should be) one step ahead.
-			local front_below_pos = {
-				x = math.floor(pos.x + self.dir_f.x + 0.5),
-				y = ground_y,
-				z = math.floor(pos.z + self.dir_f.z + 0.5)
-			}
+			-- PART 3: Smart Pathfinding with Lookahead
+			local target_x = math.floor(pos.x + self.dir_f.x + 0.5)
+			local target_z = math.floor(pos.z + self.dir_f.z + 0.5)
 
-			-- PART 2: Fix the 1-Block Step Up
-			-- Check the block directly in front of the bus at its CURRENT height.
-			-- The bus's current entity height is pos.y. The physical block occupying that height
-			-- is at math.floor(pos.y + 0.5), which is ground_y + 1 (the block immediately above the road).
-			local front_pos = {
-				x = math.floor(pos.x + self.dir_f.x + 0.5),
-				y = ground_y + 1,
-				z = math.floor(pos.z + self.dir_f.z + 0.5)
-			}
+			local next_y = get_valid_road_y(target_x, target_z, ground_y)
 
-			local front_is_air = is_air(front_pos)
-			local front_is_solid = is_solid(front_pos)
-			local front_below_is_road = is_road_at_pos(front_below_pos)
+			if next_y ~= nil then
+				-- We found a valid road block directly in front of us (flat, up, or down).
+				-- Now we must look ahead to ensure the road goes further, so we don't get stuck in a hole or a 1-block dead end.
+				if has_valid_next_step(target_x, target_z, next_y, self.dir_f) then
+					-- The road continues safely. Move forward.
+					if next_y > ground_y then
+						-- Step up
+						pos.x = target_x
+						pos.y = pos.y + 1
+						pos.z = target_z
+						self.object:set_pos(pos)
+					end
+					-- No need to explicitly step down here, the gravity check at the beginning of DRIVING state will drop it down.
 
-			-- First, evaluate Part 3 strictly: If the block below the front is NOT a road,
-			-- AND we are not dealing with a curb (where front_below might be solid dirt under a road block).
-			-- If front_pos is a wall, it MIGHT be a curb, so we defer turning left until we check Part 2.
-
-			if front_is_air and not front_below_is_road then
-				local front_below_2_pos = {
-					x = front_below_pos.x,
-					y = ground_y - 1,
-					z = front_below_pos.z
-				}
-				local front_below_is_air = is_air(front_below_pos)
-				local front_below_2_is_road = is_road_at_pos(front_below_2_pos)
-
-				if front_below_is_air and front_below_2_is_road then
-					-- The road continues one block lower. Move forward.
 					self.object:set_velocity({x = self.dir_f.x * 4.0, y = 0, z = self.dir_f.z * 4.0})
 					return
 				end
-
-				-- Drop-off / Off-road scenario (Part 3). Stop and turn left.
-				self.object:set_velocity({x = 0, y = 0, z = 0})
-				self.pending_turn_dir = turn_left(self.dir_f)
-				self.state = "TURNING"
-				self.turn_timer = 0
-				return
 			end
 
-			-- Part 2 checks
-			if front_is_air and front_below_is_road then
-				-- Flat road. Just move forward normally.
-				self.object:set_velocity({x = self.dir_f.x * 4.0, y = 0, z = self.dir_f.z * 4.0})
-
-			elseif front_is_solid then
-				-- IF that block is SOLID (a wall/step-up)
-				-- Check if this is a 1-block step up (like a bridge or curb).
-				-- This means the block at front_pos (ground_y + 1) is a valid road,
-				-- and the block above it (ground_y + 2) is air.
-				local above_1_pos = {x = front_pos.x, y = front_pos.y + 1, z = front_pos.z}
-
-				local front_is_road = is_road_at_pos(front_pos)
-				local above_1_is_air = is_air(above_1_pos)
-
-				if front_is_road and above_1_is_air then
-					-- IF yes: This is a 1-block step-up (bridge/curb).
-					-- Move the bus forward, and increase its Y position by exactly 1 block.
-					pos.x = math.floor(pos.x + self.dir_f.x + 0.5)
-					pos.y = pos.y + 1
-					pos.z = math.floor(pos.z + self.dir_f.z + 0.5)
-					self.object:set_pos(pos)
-					self.object:set_velocity({x = self.dir_f.x * 4.0, y = 0, z = self.dir_f.z * 4.0})
-				else
-					-- IF no (it's a wall or invalid block): STOP. Do not move. Turn around.
-					self.object:set_velocity({x = 0, y = 0, z = 0})
-					self.pending_turn_dir = turn_left(turn_left(self.dir_f))
-					self.state = "TURNING"
-					self.turn_timer = 0
-					return
-				end
-			else
-				-- Failsafe for unpredictable block states: treat as non-road obstacle.
-				self.object:set_velocity({x = 0, y = 0, z = 0})
-				self.pending_turn_dir = turn_left(self.dir_f)
-				self.state = "TURNING"
-				self.turn_timer = 0
-				return
-			end
+			-- If next_y is nil OR the road does not continue (dead end / single block hole),
+			-- stop and turn left to find another way.
+			self.object:set_velocity({x = 0, y = 0, z = 0})
+			self.pending_turn_dir = turn_left(self.dir_f)
+			self.state = "TURNING"
+			self.turn_timer = 0
+			return
 		end
 	end
 })
