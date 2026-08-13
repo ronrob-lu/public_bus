@@ -94,14 +94,14 @@ end
 -- Z is front/back (from 8.0 in front to -7.0 in back)
 -- Scaled by ~3.144647 (the bus mesh is now correctly aligned without the 180-degree yaw rotation).
 local seat_offsets = {
-	{ x = -69.180, y = 110.060, z = 251.570 }, -- Front-left (Seat 1)
-	{ x = 69.180, y = 110.060, z = 251.570 },  -- Front-right (Seat 2)
-	{ x = -69.180, y = 110.060, z = 94.340 },  -- Midfront-left (Seat 3)
-	{ x = 69.180, y = 110.060, z = 94.340 },   -- Midfront-right (Seat 4)
-	{ x = -69.180, y = 110.060, z = -62.890 },  -- Midback-left (Seat 5)
-	{ x = 69.180, y = 110.060, z = -62.890 },   -- Midback-right (Seat 6)
-	{ x = -69.180, y = 110.060, z = -220.130 }, -- Back-left (Seat 7)
-	{ x = 69.180, y = 110.060, z = -220.130 },  -- Back-right (Seat 8)
+	{ x = 0, y = 0, z = 0 }, -- Front-left (Seat 1)
+	{ x = 0, y = 0, z = 0 },  -- Front-right (Seat 2)
+	{ x = 0, y = 0, z = 0 },  -- Midfront-left (Seat 3)
+	{ x = 0, y = 0, z = 0 },   -- Midfront-right (Seat 4)
+	{ x = 0, y = 0, z = 0 },  -- Midback-left (Seat 5)
+	{ x = 0, y = 0, z = 0 },   -- Midback-right (Seat 6)
+	{ x = 0, y = 0, z = 0 }, -- Back-left (Seat 7)
+	{ x = 0, y = 0, z = 0 },  -- Back-right (Seat 8)
 }
 
 -- ============================================================================
