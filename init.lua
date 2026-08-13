@@ -45,6 +45,7 @@ end
 local function is_solid(pos)
 	local node = minetest.get_node_or_nil(pos)
 	if not node then return true end -- treat unloaded as solid/impassable
+	if is_road_node(node.name) then return true end -- roads are always considered solid ground for the bus
 	local def = minetest.registered_nodes[node.name]
 	return def and def.walkable
 end
@@ -53,6 +54,7 @@ end
 local function is_air(pos)
 	local node = minetest.get_node_or_nil(pos)
 	if not node then return false end
+	if is_road_node(node.name) then return false end -- roads are never considered air
 	local def = minetest.registered_nodes[node.name]
 	return not (def and def.walkable)
 end
@@ -92,14 +94,14 @@ end
 -- Z is front/back (from 8.0 in front to -7.0 in back)
 -- Scaled by ~3.144647 (the bus mesh is now correctly aligned without the 180-degree yaw rotation).
 local seat_offsets = {
-	{ x = -6.918, y = 11.006, z = 25.157 }, -- Front-left (Seat 1)
-	{ x = 6.918, y = 11.006, z = 25.157 },  -- Front-right (Seat 2)
-	{ x = -6.918, y = 11.006, z = 9.434 },  -- Midfront-left (Seat 3)
-	{ x = 6.918, y = 11.006, z = 9.434 },   -- Midfront-right (Seat 4)
-	{ x = -6.918, y = 11.006, z = -6.289 },  -- Midback-left (Seat 5)
-	{ x = 6.918, y = 11.006, z = -6.289 },   -- Midback-right (Seat 6)
-	{ x = -6.918, y = 11.006, z = -22.013 }, -- Back-left (Seat 7)
-	{ x = 6.918, y = 11.006, z = -22.013 },  -- Back-right (Seat 8)
+	{ x = -69.180, y = 110.060, z = 251.570 }, -- Front-left (Seat 1)
+	{ x = 69.180, y = 110.060, z = 251.570 },  -- Front-right (Seat 2)
+	{ x = -69.180, y = 110.060, z = 94.340 },  -- Midfront-left (Seat 3)
+	{ x = 69.180, y = 110.060, z = 94.340 },   -- Midfront-right (Seat 4)
+	{ x = -69.180, y = 110.060, z = -62.890 },  -- Midback-left (Seat 5)
+	{ x = 69.180, y = 110.060, z = -62.890 },   -- Midback-right (Seat 6)
+	{ x = -69.180, y = 110.060, z = -220.130 }, -- Back-left (Seat 7)
+	{ x = 69.180, y = 110.060, z = -220.130 },  -- Back-right (Seat 8)
 }
 
 -- ============================================================================
