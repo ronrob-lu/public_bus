@@ -292,7 +292,7 @@ minetest.register_entity("public_bus:bus", {
 				-- The passenger is now facing forward (0 rotation) relative to the bus.
 				local eye_offset = {
 						x = physical_seat.x * 29.0,
-						y = physical_seat.y * 29.0 - 5.0,
+						y = physical_seat.y * 29.0 - 3.0,
 						z = physical_seat.z * 29.0
 				}
 				clicker:set_attach(self.object, "", physical_seat, {x=0, y=0, z=0})
