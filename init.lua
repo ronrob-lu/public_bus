@@ -279,7 +279,7 @@ minetest.register_entity("public_bus:bus", {
 				-- Since the bus visual scale is 30x, we add 7.0 units (0.70 blocks) scaled down by 30 to the physical seat attachment.
 				local physical_seat = {
 					x = seat.x,
-					y = seat.y + (7.0 / 7.0), -- test 
+					y = seat.y + (7.0 / 31), -- test 
 					z = seat.z
 				}
 
