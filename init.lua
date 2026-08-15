@@ -279,7 +279,7 @@ minetest.register_entity("public_bus:bus", {
 				-- Since the bus visual scale is 30x, we add 7.0 units (0.70 blocks) scaled down by 30 to the physical seat attachment.
 				local physical_seat = {
 					x = seat.x,
-					y = seat.y + (7.0 / 31.0),
+					y = seat.y + (7.0 / 7.0), -- test 
 					z = seat.z
 				}
 
@@ -291,7 +291,7 @@ minetest.register_entity("public_bus:bus", {
 				-- The passenger is now facing forward (0 rotation) relative to the bus.
 				local eye_offset = {
 						x = physical_seat.x * 29.0,
-						y = physical_seat.y * 29.0 - 8.0,
+						y = physical_seat.y * 29.0 - 7.0,
 						z = physical_seat.z * 29.0
 				}
 				clicker:set_attach(self.object, "", physical_seat, {x=0, y=0, z=0})
