@@ -186,6 +186,7 @@ minetest.register_entity("public_bus:bus", {
 		makes_footstep_sound = false,
 		automatic_rotate = 0,
 		stepheight = 0.6,
+		backface_culling = false,
 	},
 
 	state = "DRIVING", -- Possible states: "DRIVING", "STOPPED_FOR_MOB", "STOPPED_FOR_PLAYER", "TURNING"
