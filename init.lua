@@ -166,6 +166,7 @@ end
 -- 3. Entity Registration (public_bus:bus)
 minetest.register_entity("public_bus:bus", {
 	initial_properties = {
+		hp_max = 500,
 		physical = true,
 		-- The physical collision and selection boxes are kept narrow (X limits reduced from
 		-- -1.572/1.572 to -1.200/1.200) to ensure the bus fits completely inside standard
