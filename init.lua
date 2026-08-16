@@ -172,26 +172,23 @@ local function has_valid_next_step(px, pz, py, dir_f)
 	return false
 end
 
--- Helper: Calculate Knight's Move score for curves/circles
-local function get_knight_move_score(px, pz, py, dir_f, dir_turn)
+
+-- Helper: Calculate Quadrant score for curves/circles
+-- Scans a grid in the forward-turn quadrant to determine which direction has more road.
+local function get_turn_score(px, pz, py, dir_f, dir_turn)
 	local score = 0
 
-	-- We scan multiple "knight moves" or diagonal/curved lookaheads
-	-- to detect wide circular roads and prioritize following the curve.
-
-	-- Check multiple forward and turn distance combinations (1 to 3 blocks out)
-	local check_offsets = {
-		{f=1, t=2}, {f=2, t=1},
-		{f=2, t=2}, {f=2, t=3},
-		{f=3, t=2}, {f=3, t=3},
-		{f=1, t=3}, {f=3, t=1}
-	}
-
-	for _, offset in ipairs(check_offsets) do
-		local nx = px + dir_f.x * offset.f + dir_turn.x * offset.t
-		local nz = pz + dir_f.z * offset.f + dir_turn.z * offset.t
-		if get_valid_road_y(nx, nz, py) ~= nil then
-			score = score + 1
+	-- We scan an area in the forward and turn direction to measure road density.
+	-- This effectively detects wide circular roads by choosing the quadrant with the most road blocks.
+	-- We use a 4x4 grid which covers enough radius to identify the curve direction
+	-- without being overly expensive or scanning into adjacent, parallel roads.
+	for f = 1, 4 do
+		for t = 1, 4 do
+			local nx = px + dir_f.x * f + dir_turn.x * t
+			local nz = pz + dir_f.z * f + dir_turn.z * t
+			if get_valid_road_y(nx, nz, py) ~= nil then
+				score = score + 1
+			end
 		end
 	end
 
@@ -632,8 +629,8 @@ minetest.register_entity("public_bus:bus", {
 			elseif can_go_l and not can_go_r then
 				self.pending_turn_dir = dir_l
 			elseif can_go_r and can_go_l then
-				local score_r = get_knight_move_score(pos.x, pos.z, ground_y, self.dir_f, dir_r)
-				local score_l = get_knight_move_score(pos.x, pos.z, ground_y, self.dir_f, dir_l)
+				local score_r = get_turn_score(pos.x, pos.z, ground_y, self.dir_f, dir_r)
+				local score_l = get_turn_score(pos.x, pos.z, ground_y, self.dir_f, dir_l)
 				if score_r > score_l then
 					self.pending_turn_dir = dir_r
 				elseif score_l > score_r then
