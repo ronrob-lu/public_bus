@@ -195,7 +195,7 @@ end
 -- 3. Entity Registration (public_bus:bus)
 minetest.register_entity("public_bus:bus", {
 	initial_properties = {
-		hp_max = 500,
+		hp_max = 100,
 		physical = true,
 		-- The physical collision and selection boxes are kept narrow (X limits reduced from
 		-- -1.572/1.572 to -1.200/1.200) to ensure the bus fits completely inside standard
@@ -247,7 +247,7 @@ minetest.register_entity("public_bus:bus", {
 	-- Support punch to board/exit
 	on_punch = function(self, puncher, time_from_last_punch, tool_capabilities, dir)
 		if not puncher or not puncher:is_player() then
-			return
+			return true
 		end
 		local name = puncher:get_player_name()
 		local has_privs = minetest.check_player_privs(name, {give = true}) or minetest.check_player_privs(name, {server = true})
@@ -255,32 +255,41 @@ minetest.register_entity("public_bus:bus", {
 
 		if not (is_creative or has_privs) then
 			minetest.chat_send_player(name, "Only server administrators or players in creative mode can destroy this bus!")
-			return
+			return true
 		end
 
-		-- Detach all passengers
-		for seat_idx, passenger_name in pairs(self.passengers) do
-			local passenger = minetest.get_player_by_name(passenger_name)
-			if passenger then
-				passenger:set_detach()
-				passenger:set_eye_offset({x=0, y=0, z=0}, {x=0, y=0, z=0})
-				passenger:set_properties({visual_size = {x=1, y=1, z=1}})
+		local damage = 10 -- deal 10 damage per punch, so it takes 10 hits to destroy
+		local new_hp = self.object:get_hp() - damage
+
+		if new_hp <= 0 then
+			-- Detach all passengers
+			for seat_idx, passenger_name in pairs(self.passengers) do
+				local passenger = minetest.get_player_by_name(passenger_name)
+				if passenger then
+					passenger:set_detach()
+					passenger:set_eye_offset({x=0, y=0, z=0}, {x=0, y=0, z=0})
+					passenger:set_properties({visual_size = {x=1, y=1, z=1}})
+				end
 			end
-		end
 
-		-- Give spawner item if not in creative mode
-		if not is_creative then
-			local inv = puncher:get_inventory()
-			local stack = ItemStack("public_bus:bus_spawner")
-			if inv and inv:room_for_item("main", stack) then
-				inv:add_item("main", stack)
-			else
-				minetest.add_item(self.object:get_pos() or puncher:get_pos(), stack)
+			-- Give spawner item if not in creative mode
+			if not is_creative then
+				local inv = puncher:get_inventory()
+				local stack = ItemStack("public_bus:bus_spawner")
+				if inv and inv:room_for_item("main", stack) then
+					inv:add_item("main", stack)
+				else
+					minetest.add_item(self.object:get_pos() or puncher:get_pos(), stack)
+				end
 			end
+
+			-- Remove the entity
+			self.object:remove()
+		else
+			self.object:set_hp(new_hp)
 		end
 
-		-- Remove the entity
-		self.object:remove()
+		return true
 	end,
 
 	-- Support right-click to board/exit (clicking)
