@@ -447,6 +447,24 @@ minetest.register_entity("public_bus:bus", {
 			self.object:set_velocity({x = 0, y = 0, z = 0})
 
 			self.turn_timer = self.turn_timer + dtime
+			local t = self.turn_timer / 0.5
+			if t > 1 then t = 1 end
+
+			-- Smooth Yaw
+			if self.turn_start_yaw and self.turn_end_yaw then
+				local new_yaw = self.turn_start_yaw + (self.turn_end_yaw - self.turn_start_yaw) * t
+				self.object:set_yaw(new_yaw)
+			end
+
+			-- Smooth Position (Quadratic Bezier)
+			if self.turn_p0 and self.turn_p1 and self.turn_p2 then
+				local u = 1 - t
+				local new_pos = self.object:get_pos()
+				new_pos.x = u * u * self.turn_p0.x + 2 * u * t * self.turn_p1.x + t * t * self.turn_p2.x
+				new_pos.z = u * u * self.turn_p0.z + 2 * u * t * self.turn_p1.z + t * t * self.turn_p2.z
+				self.object:set_pos(new_pos)
+			end
+
 			if self.turn_timer >= 0.5 then
 				self.turn_timer = 0
 				self.dir_f = self.pending_turn_dir
@@ -454,10 +472,10 @@ minetest.register_entity("public_bus:bus", {
 				self.object:set_yaw(self.yaw)
 				self:update_bus_boxes()
 
-				local new_pos = self.object:get_pos()
-				new_pos.x = math.floor(new_pos.x + 0.5)
-				new_pos.z = math.floor(new_pos.z + 0.5)
-				self.object:set_pos(new_pos)
+				local final_pos = self.object:get_pos()
+				final_pos.x = math.floor(final_pos.x + 0.5)
+				final_pos.z = math.floor(final_pos.z + 0.5)
+				self.object:set_pos(final_pos)
 
 				self.state = "DRIVING"
 					if self.state ~= self.last_state then
@@ -603,6 +621,35 @@ minetest.register_entity("public_bus:bus", {
 				self.last_state = self.state
 			end
 			self.turn_timer = 0
+
+			-- Setup turn interpolation variables
+			self.turn_start_yaw = minetest.dir_to_yaw(self.dir_f)
+			self.turn_end_yaw = minetest.dir_to_yaw(self.pending_turn_dir)
+
+			-- Handle yaw wrapping (shortest path)
+			if math.abs(self.turn_end_yaw - self.turn_start_yaw) > math.pi then
+				if self.turn_end_yaw > self.turn_start_yaw then
+					self.turn_start_yaw = self.turn_start_yaw + 2 * math.pi
+				else
+					self.turn_end_yaw = self.turn_end_yaw + 2 * math.pi
+				end
+			end
+
+			-- P0: Current position
+			self.turn_p0 = {x = pos.x, y = pos.y, z = pos.z}
+			-- P1: Center of intersection block
+			self.turn_p1 = {
+				x = math.floor(pos.x + self.dir_f.x + 0.5),
+				y = pos.y,
+				z = math.floor(pos.z + self.dir_f.z + 0.5)
+			}
+			-- P2: Center of next block in turn direction (from P1)
+			self.turn_p2 = {
+				x = self.turn_p1.x + self.pending_turn_dir.x,
+				y = pos.y,
+				z = self.turn_p1.z + self.pending_turn_dir.z
+			}
+
 			return
 		end
 	end
