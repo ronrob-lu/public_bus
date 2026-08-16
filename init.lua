@@ -175,18 +175,24 @@ end
 -- Helper: Calculate Knight's Move score for curves/circles
 local function get_knight_move_score(px, pz, py, dir_f, dir_turn)
 	local score = 0
-	-- Forward 1, Turn 2
-	local nx1 = px + dir_f.x + dir_turn.x * 2
-	local nz1 = pz + dir_f.z + dir_turn.z * 2
-	if get_valid_road_y(nx1, nz1, py) ~= nil then
-		score = score + 1
-	end
 
-	-- Forward 2, Turn 1
-	local nx2 = px + dir_f.x * 2 + dir_turn.x
-	local nz2 = pz + dir_f.z * 2 + dir_turn.z
-	if get_valid_road_y(nx2, nz2, py) ~= nil then
-		score = score + 1
+	-- We scan multiple "knight moves" or diagonal/curved lookaheads
+	-- to detect wide circular roads and prioritize following the curve.
+
+	-- Check multiple forward and turn distance combinations (1 to 3 blocks out)
+	local check_offsets = {
+		{f=1, t=2}, {f=2, t=1},
+		{f=2, t=2}, {f=2, t=3},
+		{f=3, t=2}, {f=3, t=3},
+		{f=1, t=3}, {f=3, t=1}
+	}
+
+	for _, offset in ipairs(check_offsets) do
+		local nx = px + dir_f.x * offset.f + dir_turn.x * offset.t
+		local nz = pz + dir_f.z * offset.f + dir_turn.z * offset.t
+		if get_valid_road_y(nx, nz, py) ~= nil then
+			score = score + 1
+		end
 	end
 
 	return score
