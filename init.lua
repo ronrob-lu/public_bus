@@ -1,6 +1,8 @@
 -- Public Bus Mod for Luanti (Minetest)
 -- Code licensed under MIT License, Assets under CC BY-SA 4.0.
 
+local pathfinding_debug_enabled = false
+
 -- 1. Node Registration (public_bus:street)
 minetest.register_node("public_bus:street", {
 	description = "Street (Hexagon Pattern)",
@@ -204,6 +206,7 @@ minetest.register_entity("public_bus:bus", {
 	turn_timer = 0,
 	turn_cooldown = 0,
 	dir_f = nil,
+	debug_timer = 0,
 
 	on_activate = function(self, staticdata, dtime_s)
 		self.object:set_armor_groups({fleshy = 100})
@@ -461,12 +464,18 @@ minetest.register_entity("public_bus:bus", {
 						self.object:set_animation({x = 1, y = 2}, 1, 0, true)
 						self.last_state = self.state
 					end
+
+				if pathfinding_debug_enabled then
+					minetest.log("action", "[Public Bus Debug] TURN COMPLETED. New dir=(" .. self.dir_f.x .. "," .. self.dir_f.z .. ")")
+				end
 			end
 			return
 		end
 
 		-- DRIVING state
 		if self.state == "DRIVING" then
+			self.debug_timer = self.debug_timer + dtime
+
 			-- Snap to axis to prevent drifting
 			local needs_snap = false
 			if self.dir_f.x ~= 0 then
@@ -525,6 +534,11 @@ minetest.register_entity("public_bus:bus", {
 				-- We found a valid road block directly in front of us (flat, up, or down).
 				-- Now we must look ahead to ensure the road goes further, so we don't get stuck in a hole or a 1-block dead end.
 				if has_valid_next_step(target_x, target_z, next_y, self.dir_f) then
+					if pathfinding_debug_enabled and self.debug_timer >= 1.0 then
+						minetest.log("action", "[Public Bus Debug] DRIVING: pos=(" .. string.format("%.1f", pos.x) .. "," .. string.format("%.1f", pos.y) .. "," .. string.format("%.1f", pos.z) .. "), dir=(" .. self.dir_f.x .. "," .. self.dir_f.z .. "), next_y=" .. next_y .. ", continuing forward.")
+						self.debug_timer = 0
+					end
+
 					-- The road continues safely. Move forward.
 					if next_y > ground_y then
 						-- Step up
@@ -570,6 +584,14 @@ minetest.register_entity("public_bus:bus", {
 			else
 				-- True dead end, fall back to turning left to eventually turn around
 				self.pending_turn_dir = turn_left(self.dir_f)
+			end
+
+			if pathfinding_debug_enabled then
+				local turn_desc = "UNKNOWN"
+				if self.pending_turn_dir == dir_r then turn_desc = "RIGHT"
+				elseif self.pending_turn_dir == dir_l then turn_desc = "LEFT"
+				elseif self.pending_turn_dir == turn_left(self.dir_f) then turn_desc = "LEFT (DEAD END / FALLBACK)" end
+				minetest.log("action", "[Public Bus Debug] TURN DECISION: can_go_r=" .. tostring(can_go_r) .. ", can_go_l=" .. tostring(can_go_l) .. ". Decided to turn " .. turn_desc)
 			end
 
 			self.state = "TURNING"
@@ -631,6 +653,17 @@ minetest.register_craftitem("public_bus:bus_spawner", {
 			end
 		end
 		return itemstack
+	end,
+})
+
+-- Chat Command to Toggle Pathfinding Debug
+minetest.register_chatcommand("pbus_debug", {
+	description = "Toggles pathfinding debug logging for public buses",
+	privs = {server = true},
+	func = function(name, param)
+		pathfinding_debug_enabled = not pathfinding_debug_enabled
+		local state = pathfinding_debug_enabled and "ON" or "OFF"
+		return true, "Public Bus pathfinding debug is now " .. state
 	end,
 })
 
