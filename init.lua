@@ -541,9 +541,37 @@ minetest.register_entity("public_bus:bus", {
 			end
 
 			-- If next_y is nil OR the road does not continue (dead end / single block hole),
-			-- stop and turn left to find another way.
+			-- stop and find another way. Check right and left.
 			self.object:set_velocity({x = 0, y = 0, z = 0})
-			self.pending_turn_dir = turn_left(self.dir_f)
+
+			local dir_r = turn_right(self.dir_f)
+			local target_r_x = math.floor(pos.x + dir_r.x + 0.5)
+			local target_r_z = math.floor(pos.z + dir_r.z + 0.5)
+			local r_y = get_valid_road_y(target_r_x, target_r_z, ground_y)
+
+			local dir_l = turn_left(self.dir_f)
+			local target_l_x = math.floor(pos.x + dir_l.x + 0.5)
+			local target_l_z = math.floor(pos.z + dir_l.z + 0.5)
+			local l_y = get_valid_road_y(target_l_x, target_l_z, ground_y)
+
+			local can_go_r = (r_y ~= nil) and has_valid_next_step(target_r_x, target_r_z, r_y, dir_r)
+			local can_go_l = (l_y ~= nil) and has_valid_next_step(target_l_x, target_l_z, l_y, dir_l)
+
+			if can_go_r and not can_go_l then
+				self.pending_turn_dir = dir_r
+			elseif can_go_l and not can_go_r then
+				self.pending_turn_dir = dir_l
+			elseif can_go_r and can_go_l then
+				if math.random() > 0.5 then
+					self.pending_turn_dir = dir_r
+				else
+					self.pending_turn_dir = dir_l
+				end
+			else
+				-- True dead end, fall back to turning left to eventually turn around
+				self.pending_turn_dir = turn_left(self.dir_f)
+			end
+
 			self.state = "TURNING"
 			if self.state ~= self.last_state then
 				self.object:set_animation({x = 1, y = 2}, 1, 0, true)
