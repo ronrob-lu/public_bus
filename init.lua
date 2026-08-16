@@ -172,6 +172,26 @@ local function has_valid_next_step(px, pz, py, dir_f)
 	return false
 end
 
+-- Helper: Calculate Knight's Move score for curves/circles
+local function get_knight_move_score(px, pz, py, dir_f, dir_turn)
+	local score = 0
+	-- Forward 1, Turn 2
+	local nx1 = px + dir_f.x + dir_turn.x * 2
+	local nz1 = pz + dir_f.z + dir_turn.z * 2
+	if get_valid_road_y(nx1, nz1, py) ~= nil then
+		score = score + 1
+	end
+
+	-- Forward 2, Turn 1
+	local nx2 = px + dir_f.x * 2 + dir_turn.x
+	local nz2 = pz + dir_f.z * 2 + dir_turn.z
+	if get_valid_road_y(nx2, nz2, py) ~= nil then
+		score = score + 1
+	end
+
+	return score
+end
+
 -- 3. Entity Registration (public_bus:bus)
 minetest.register_entity("public_bus:bus", {
 	initial_properties = {
@@ -597,10 +617,18 @@ minetest.register_entity("public_bus:bus", {
 			elseif can_go_l and not can_go_r then
 				self.pending_turn_dir = dir_l
 			elseif can_go_r and can_go_l then
-				if math.random() > 0.5 then
+				local score_r = get_knight_move_score(pos.x, pos.z, ground_y, self.dir_f, dir_r)
+				local score_l = get_knight_move_score(pos.x, pos.z, ground_y, self.dir_f, dir_l)
+				if score_r > score_l then
 					self.pending_turn_dir = dir_r
-				else
+				elseif score_l > score_r then
 					self.pending_turn_dir = dir_l
+				else
+					if math.random() > 0.5 then
+						self.pending_turn_dir = dir_r
+					else
+						self.pending_turn_dir = dir_l
+					end
 				end
 			else
 				-- True dead end, fall back to turning left to eventually turn around
@@ -649,6 +677,13 @@ minetest.register_entity("public_bus:bus", {
 				y = pos.y,
 				z = self.turn_p1.z + self.pending_turn_dir.z
 			}
+
+			-- If the intersection block (P1) is not actually a valid road (e.g. sharp turn),
+			-- adjust P1 to be closer to the midpoint of P0 and P2 to prevent swinging wide into grass.
+			if get_valid_road_y(self.turn_p1.x, self.turn_p1.z, ground_y) == nil then
+				self.turn_p1.x = (self.turn_p0.x + self.turn_p2.x) / 2.0
+				self.turn_p1.z = (self.turn_p0.z + self.turn_p2.z) / 2.0
+			end
 
 			return
 		end
