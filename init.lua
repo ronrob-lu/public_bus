@@ -28,7 +28,14 @@ local allowed_roads = {
 	"public_bus:street",
 	"default:gravel",
 	"mg_villages:road",
-	"pathv7:stairw"
+	"pathv7:stairw",
+	"pathv7:stairsw",
+	"pathv7:stairse",
+	"pathv7:stairnw",
+	"pathv7:stairne",
+	"pathv7:stairs",
+	"pathv7:stairn",
+	"pathv7:staire"
 }
 
 -- Check if a node is an allowed road
