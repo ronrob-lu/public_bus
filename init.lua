@@ -195,7 +195,7 @@ minetest.register_entity("public_bus:bus", {
 		is_visible = true,
 		makes_footstep_sound = false,
 		automatic_rotate = 0,
-		stepheight = 0.6,
+		stepheight = 1.1,
 		backface_culling = false,
 	},
 
@@ -500,20 +500,23 @@ minetest.register_entity("public_bus:bus", {
 			-- Start from current rounded Y and go down up to 5 blocks to find a solid block
 			local ground_y = math.floor(pos.y + 0.5)
 			local found_ground = false
-			for y_search = math.floor(pos.y + 0.5), math.floor(pos.y + 0.5) - 5, -1 do
-				local check_pos = {
-					x = math.floor(pos.x + 0.5),
-					y = y_search,
-					z = math.floor(pos.z + 0.5)
-				}
-				if is_solid(check_pos) then
-					ground_y = y_search
-					found_ground = true
-					break
+			local max_ground_y = nil
+			local check_offsets = {0, 5, 10, -5, -10}
+			for _, offset in ipairs(check_offsets) do
+				local cx = math.floor(pos.x + self.dir_f.x * offset + 0.5)
+				local cz = math.floor(pos.z + self.dir_f.z * offset + 0.5)
+				for y_search = math.floor(pos.y + 0.5), math.floor(pos.y + 0.5) - 5, -1 do
+					if is_solid({x = cx, y = y_search, z = cz}) then
+						if not max_ground_y or y_search > max_ground_y then
+							max_ground_y = y_search
+						end
+						break
+					end
 				end
 			end
 
-			if found_ground then
+			if max_ground_y then
+				ground_y = max_ground_y
 				-- Force the bus's Y position (height) to be exactly on top of that solid block.
 				pos.y = ground_y + 0.5
 				self.object:set_pos(pos)
