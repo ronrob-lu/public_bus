@@ -30,6 +30,8 @@ local allowed_roads = {
 	"public_bus:street",
 	"default:gravel",
 	"mg_villages:road",
+	"pathv7:junglewood",
+	"pathv7:bridgewood",
 	"pathv7:stairw",
 	"pathv7:stairsw",
 	"pathv7:stairse",
