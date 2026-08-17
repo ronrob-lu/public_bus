@@ -245,11 +245,13 @@ minetest.register_entity("public_bus:bus", {
 		self.turn_cooldown = 0
 
 		-- Start the engine sound
-		self.sound_handle = minetest.sound_play("bus", {
-			object = self.object,
-			loop = true,
-			max_hear_distance = 32,
-		})
+		if self.state == "DRIVING" or self.state == "TURNING" then
+			self.sound_handle = minetest.sound_play("bus", {
+				object = self.object,
+				loop = true,
+				max_hear_distance = 6,
+			})
+		end
 	end,
 
 	get_staticdata = function(self)
@@ -474,8 +476,19 @@ minetest.register_entity("public_bus:bus", {
 		if self.state ~= self.last_state then
 			if self.state == "DRIVING" or self.state == "TURNING" then
 				self.object:set_animation({x = 1, y = 2}, 1, 0, true)
+				if not self.sound_handle then
+					self.sound_handle = minetest.sound_play("bus", {
+						object = self.object,
+						loop = true,
+						max_hear_distance = 6,
+					})
+				end
 			else
 				self.object:set_animation({x = 0, y = 0.59}, 1, 0, true)
+				if self.sound_handle then
+					minetest.sound_stop(self.sound_handle)
+					self.sound_handle = nil
+				end
 			end
 			self.last_state = self.state
 		end
@@ -524,6 +537,13 @@ minetest.register_entity("public_bus:bus", {
 				self.state = "DRIVING"
 					if self.state ~= self.last_state then
 						self.object:set_animation({x = 1, y = 2}, 1, 0, true)
+						if not self.sound_handle then
+							self.sound_handle = minetest.sound_play("bus", {
+								object = self.object,
+								loop = true,
+								max_hear_distance = 6,
+							})
+						end
 						self.last_state = self.state
 					end
 
@@ -670,6 +690,13 @@ minetest.register_entity("public_bus:bus", {
 			self.state = "TURNING"
 			if self.state ~= self.last_state then
 				self.object:set_animation({x = 1, y = 2}, 1, 0, true)
+				if not self.sound_handle then
+					self.sound_handle = minetest.sound_play("bus", {
+						object = self.object,
+						loop = true,
+						max_hear_distance = 6,
+					})
+				end
 				self.last_state = self.state
 			end
 			self.turn_timer = 0
