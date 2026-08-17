@@ -243,6 +243,13 @@ minetest.register_entity("public_bus:bus", {
 		self.object:set_yaw(self.yaw)
 		self.object:set_acceleration({x = 0, y = -15.0, z = 0}) -- Apply gravity
 		self.turn_cooldown = 0
+
+		-- Start the engine sound
+		self.sound_handle = minetest.sound_play("bus", {
+			object = self.object,
+			loop = true,
+			max_hear_distance = 32,
+		})
 	end,
 
 	get_staticdata = function(self)
@@ -289,6 +296,9 @@ minetest.register_entity("public_bus:bus", {
 			end
 
 			-- Remove the entity
+			if self.sound_handle then
+				minetest.sound_stop(self.sound_handle)
+			end
 			self.object:remove()
 		else
 			self.object:set_hp(new_hp)
@@ -783,6 +793,9 @@ minetest.register_chatcommand("clear_pbuses", {
 							passenger:set_properties({visual_size = {x=1, y=1, z=1}})
 						end
 					end
+				end
+				if entity.sound_handle then
+					minetest.sound_stop(entity.sound_handle)
 				end
 				entity.object:remove()
 				count = count + 1
