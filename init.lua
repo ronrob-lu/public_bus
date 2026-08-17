@@ -249,7 +249,7 @@ minetest.register_entity("public_bus:bus", {
 			self.sound_handle = minetest.sound_play("bus", {
 				object = self.object,
 				loop = true,
-				max_hear_distance = 6,
+				max_hear_distance = 36,
 			})
 		end
 	end,
@@ -480,7 +480,7 @@ minetest.register_entity("public_bus:bus", {
 					self.sound_handle = minetest.sound_play("bus", {
 						object = self.object,
 						loop = true,
-						max_hear_distance = 6,
+						max_hear_distance = 36,
 					})
 				end
 			else
@@ -541,7 +541,7 @@ minetest.register_entity("public_bus:bus", {
 							self.sound_handle = minetest.sound_play("bus", {
 								object = self.object,
 								loop = true,
-								max_hear_distance = 6,
+								max_hear_distance = 36,
 							})
 						end
 						self.last_state = self.state
@@ -694,7 +694,7 @@ minetest.register_entity("public_bus:bus", {
 					self.sound_handle = minetest.sound_play("bus", {
 						object = self.object,
 						loop = true,
-						max_hear_distance = 6,
+						max_hear_distance = 36,
 					})
 				end
 				self.last_state = self.state
