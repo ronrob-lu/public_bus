@@ -208,8 +208,8 @@ minetest.register_entity("public_bus:bus", {
 		-- with the 1-block-high pedestrian sidewalks/sidewalk edges next to the road,
 		-- which would otherwise cause the physics engine to step/climb up and drive/fly on top
 		-- of the sidewalk.
-		collisionbox = {-1.000, 0.000, -10.500, 1.000, 9.435, 10.500},
-		selectionbox = {-1.100, 0.000, -11.000, 1.100, 11.322, 11.000},
+		collisionbox = {-1.000, -5.250, -30.000, 1.000, 28.350, 34.557},
+		selectionbox = {-1.100, -5.300, -31.000, 1.100, 29.000, 35.000},
 		visual = "mesh",
 		mesh = "new_bus.gltf",
 		textures = {"texture_bus_new.png", "colormap.png"},
@@ -375,14 +375,14 @@ minetest.register_entity("public_bus:bus", {
 		local cbox, sbox
 		if current_axis == "x" then
 			-- Facing East or West (X axis). Swap width and length.
-			-- Original: {-1.000, 0.000, -10.500, 1.000, 9.435, 10.500}
-			-- Swapped: {-10.500, 0.000, -1.000, 10.500, 9.435, 1.000}
-			cbox = {-10.500, 0.000, -1.000, 10.500, 9.435, 1.000}
-			sbox = {-11.000, 0.000, -1.100, 11.000, 11.322, 1.100}
+			-- Original: {-1.000, -5.250, -30.000, 1.000, 28.350, 34.557}
+			-- Swapped: {-34.557, -5.250, -1.000, 30.000, 28.350, 1.000}
+			cbox = {-34.557, -5.250, -1.000, 30.000, 28.350, 1.000}
+			sbox = {-35.000, -5.300, -1.100, 31.000, 29.000, 1.100}
 		else
 			-- Facing North or South (Z axis). Use original bounds.
-			cbox = {-1.000, 0.000, -10.500, 1.000, 9.435, 10.500}
-			sbox = {-1.100, 0.000, -11.000, 1.100, 11.322, 11.000}
+			cbox = {-1.000, -5.250, -30.000, 1.000, 28.350, 34.557}
+			sbox = {-1.100, -5.300, -31.000, 1.100, 29.000, 35.000}
 		end
 		self.object:set_properties({
 			collisionbox = cbox,
